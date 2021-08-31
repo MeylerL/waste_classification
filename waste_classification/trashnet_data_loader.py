@@ -17,8 +17,6 @@ def load_trashnet(colab=False):
   batch_size = 32
   img_height = 180
   img_width = 180
-
-
   train_ds = image_dataset_from_directory(
       directory,
       validation_split=0.2,
@@ -26,7 +24,6 @@ def load_trashnet(colab=False):
       seed=123,
       image_size=(img_height, img_width),
       batch_size=batch_size)
-
   val_ds = image_dataset_from_directory(
       directory,
       validation_split=0.2,
@@ -34,5 +31,4 @@ def load_trashnet(colab=False):
       seed=123,
       image_size=(img_height, img_width),
       batch_size=batch_size)
-
-return train_ds, val_ds
+  return train_ds, val_ds
