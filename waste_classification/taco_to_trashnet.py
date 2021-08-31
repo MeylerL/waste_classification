@@ -13,17 +13,17 @@ category_conversion['trash'] = [1,2,3,22,25,29,35,36,37,38,39,40,41,42,45,46,
                                 48,50,51,52,53,54,57,58,59]
 
 
-def move_rename_jsons():
+def move_rename_jsons(my_path):
     """moves the jsons into one directory and renames them by batch"""
-    # you will need to choose or create a directory for second part of shutil
+    # you will need to choose or create a directory called "annotations" inside TACO/data for second part of shutil
     for i in range(1,16):
-         shutil.move(f'<YOUR/PATH/HERE>/TACO/data/batch_{i}/annotations.json',
-                f'<YOUR/PATH/HERE>/batch_{i}_annotations.json')
+         shutil.copy(f'{my_path}/TACO/data/batch_{i}/annotations.json',
+                     f'{my_path}/TACO/data/annotations/batch_{i}_annotations.json')
     return None
 
-def open_json(n):
+def open_json(n, my_path):
     """opens the json for taco batch and extracts the image and category data"""
-    file = open(f'<YOUR/PATH/HERE>/batch_{n}_annotations.json')
+    file = open(f'{my_path}/TACO/data/annotations/batch_{n}_annotations.json')
     data = json.load(file)
     image_data = data['images']
     category_data = data['annotations']
@@ -74,7 +74,7 @@ def compatible_images(image_categories):
     final_images = {k:v for k,v in new_image_categories.items() if len(v) <= 1}
     return final_images
 
-def move_images(n, final_images, image_files):
+def move_images(n, final_images, image_files, my_path):
     """creates dataframe of images to be moved and moves them to relevant
     trashnet folder"""
     id_category_df = pd.DataFrame.from_dict(final_images, orient ='index')
@@ -82,17 +82,20 @@ def move_images(n, final_images, image_files):
     image_df = id_category_df.merge(id_filename_df, left_index=True, right_index=True)
     image_df.rename(columns = {'0_x':'category', '0_y':'filename'}, inplace = True)
     # need to create trashnet folders that match the category names for second part of shutil
+    #folders should be in TACO/data and should be named: paper, plastic, trash, cardboard, trash, metal
     for index, row in image_df.iterrows():
-        shutil.move(f'<YOUR/PATH/HERE>/TACO/data/batch_{n}/{row["filename"]}',
-                f'<YOUR/PATH/HERE>/{row["category"]}/batch_{n}{row["filename"]}')
+        shutil.copy(f'{my_path}/TACO/data/batch_{n}/{row["filename"]}',
+                    f'{my_path}/TACO/data/{row["category"]}/batch_{n}{row["filename"]}')
     return None
 
-def get_tacos():
-    """loops through all jsons and applies the above functions in order to unpack"""
+def get_tacos(my_path):
+    """loops through all jsons and applies the above functions in order to unpack
+    my_path will be some string like /Users/izzy/code/MeylerL/waste_classification/raw_data"""
     for item in range(1,16):
-        image_data, category_data = open_json(item)
+        #move_rename_jsons(my_path)
+        image_data, category_data = open_json(item, my_path)
         image_files = image_ids(image_data)
         image_cats = image_categories(category_data)
         final_images = compatible_images(image_cats)
-        move_images(item, final_images, image_files)
+        move_images(item, final_images, image_files, my_path)
     return None
