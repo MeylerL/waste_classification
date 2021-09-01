@@ -1,8 +1,8 @@
 
 BUCKET_NAME: "wagon-data-699-waste_classification"
 #RENAME WHEN WE'VE GOT THE DATAPATH
-LOCAL_PATH_TRASHNET = "XXX"
-LOCAL_PATH_TACO = "XXX"
+LOCAL_PATH_TRASHNET = "/Users/izzy/code/MeylerL/waste_classification/raw_data/dataset-original"
+LOCAL_PATH_TACO = "/Users/izzy/code/MeylerL/waste_classification/raw_data/TACO/data/cat_folders"
 
 BUCKET_TRAIN_DATA_PATH_TRASHNET = f"waste_management_data/{LOCAL_PATH_TRASHNET}"
 BUCKET_TRAIN_DATA_PATH_TACO = f"waste_management_data/{LOCAL_PATH_TACO}"
