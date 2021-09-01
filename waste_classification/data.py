@@ -6,6 +6,7 @@ import PIL
 import PIL.Image
 from tensorflow.keras.preprocessing import image_dataset_from_directory
 
+
 def load_trashnet(colab=False):
   "loads trashnet data from files within raw_data folder.Returns a train_ds and val_ds as pandas dataframes."
   if colab:
