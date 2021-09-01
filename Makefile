@@ -79,15 +79,16 @@ create_bucket:
 	@gsutil mb -l ${REGION} -p ${PROJECT_ID} gs://${BUCKET_NAME}
 
 #RENAME WHEN WE'VE GOT THE DATAPATH
-LOCAL_PATH_TRASHNET="XXX"
-LOCAL_PATH_TACO="XXX"
+LOCAL_PATH_TRASHNET="/Users/izzy/code/MeylerL/waste_classification/raw_data/dataset-original"
+LOCAL_PATH_TACO="/Users/izzy/code/MeylerL/waste_classification/raw_data/TACO/data/cat_folders"
 
 BUCKET_FOLDER=waste_management_data
 
-BUCKET_FILE_NAME=$(shell basename ${LOCAL_PATH})
+TRASHNET_BUCKET_FILE_NAME=$(shell basename ${LOCAL_PATH_TRASHNET})
+TACO_BUCKET_FILE_NAME=$(shell basename ${LOCAL_PATH_TACO})
 
 upload_trashnet_data:
-	@gsutil cp ${LOCAL_PATH_TASHNET} gs://${BUCKET_NAME}/${BUCKET_FOLDER}/${BUCKET_FILE_NAME}
+	@gsutil cp -r ${LOCAL_PATH_TRASHNET} gs://${BUCKET_NAME}/${BUCKET_FOLDER}/${TRASHNET_BUCKET_FILE_NAME}
 
 upload_TACO_data:
-	@gsutil cp ${LOCAL_PATH_TACO} gs://${BUCKET_NAME}/${BUCKET_FOLDER}/${BUCKET_FILE_NAME}
+	@gsutil cp -r ${LOCAL_PATH_TACO} gs://${BUCKET_NAME}/${BUCKET_FOLDER}/${TACO_BUCKET_FILE_NAME}
