@@ -78,7 +78,6 @@ set_project:
 create_bucket:
 	@gsutil mb -l ${REGION} -p ${PROJECT_ID} gs://${BUCKET_NAME}
 
-#RENAME WHEN WE'VE GOT THE DATAPATH
 LOCAL_PATH_TRASHNET="/Users/izzy/code/MeylerL/waste_classification/raw_data/dataset-original"
 LOCAL_PATH_TACO="/Users/izzy/code/MeylerL/waste_classification/raw_data/TACO/data/cat_folders"
 
