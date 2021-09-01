@@ -8,6 +8,7 @@ from tensorflow.data import AUTOTUNE
 import tensorflow as tf
 import pandas as pd
 import matplotlib.pyplot as plt
+import seaborn as sns
 import numpy as np
 import os
 import PIL
@@ -80,20 +81,20 @@ def load_data(data_dir):
     img_width = 180
 
     all_train_ds = image_dataset_from_directory(data_dir,
-                                            validation_split=0.2,
-                                            subset="training",
-                                            seed=123,
-                                            image_size=(img_height, img_width),
-                                            batch_size=batch_size)
+                                                validation_split=0.2,
+                                                subset="training",
+                                                seed=123,
+                                                image_size=(img_height, img_width),
+                                                batch_size=batch_size)
     valid_batches = len(all_train_ds)//5
     train_ds = all_train_ds.skip(valid_batches)
     val_ds = all_train_ds.take(valid_batches)
     test_ds = image_dataset_from_directory(data_dir,
-                                          validation_split=0.2,
-                                          subset="validation",
-                                          seed=123,
-                                          image_size=(img_height, img_width),
-                                          batch_size=batch_size)
+                                           validation_split=0.2,
+                                           subset="validation",
+                                           seed=123,
+                                           image_size=(img_height, img_width),
+                                           batch_size=batch_size)
     return train_ds, val_ds, test_ds
 
 
@@ -107,6 +108,23 @@ def preproc_pipeline_trashnet(data_dir, model_type, save_to, epochs=5):
     model.save(save_to)
 
 
+def compute_confusion_matrix(model_dir, data_dir, output_plot_fn):
+    train_ds, val_ds, test_ds = load_data(data_dir)
+    model = load_model(model_dir)
+    confusion_matrix = None
+    for batch_input, batch_output in val_ds:
+        p = tf.argmax(model(batch_input), -1)
+        c = tf.math.confusion_matrix(batch_output, p, num_classes=6)
+        if confusion_matrix is None:
+            confusion_matrix = c
+        else:
+            confusion_matrix += c
+    labels = list(os.walk(data_dir))[0][1]
+    sns.heatmap(confusion_matrix.numpy(), annot=True, xticklabels=labels, yticklabels=labels)
+    plt.savefig(output_plot_fn)
+    print(f"confusion matrix plot saved at {output_plot_fn}")
+
+
 if __name__ == "__main__":
     model_type="standard"
     data_dir = "../../raw_data/dataset-resized/"
@@ -114,8 +132,5 @@ if __name__ == "__main__":
     preproc_pipeline_trashnet(data_dir=data_dir,
                               model_type=model_type,
                               save_to=model_dir,
-                              epochs = 2)
-
-    print("testing if the model loading works")
-    model = load_model(model_dir)
-    print("DONE")
+                              epochs=1)
+    compute_confusion_matrix(model_dir, data_dir, f"../../confusion_matrix_{model_type}")
