@@ -1,3 +1,4 @@
+from waste_classification.data import get_data_trashnet
 from tensorflow.keras.layers.experimental.preprocessing import Rescaling, RandomRotation, RandomFlip
 from tensorflow.keras import Sequential
 from tensorflow.keras.preprocessing import image_dataset_from_directory
@@ -13,7 +14,9 @@ import os
 import PIL
 import PIL.Image
 from glob import glob
-
+import joblib
+from google.cloud import storage
+from waste_classification.data import get_data_trashnet, get_data_TACO
 
 def augment_trashnet():
     augmentation = Sequential(
@@ -21,10 +24,14 @@ def augment_trashnet():
          RandomFlip()])
     return augmentation
 
-
 def normalize_trashnet():
     normalization_layer = Rescaling(1. / 255)
     return normalization_layer
+
+def preproc_pipeline_trashnet(data_dir, model_type, save_to, epochs=5):
+    train_ds, val_ds, test_ds = get_data_trashnet()
+    model = train_model(train_ds, val_ds, model_type, epochs)
+    model.save(save_to)
 
 def create_main_layer(model_type, num_classes=6):
     input_shape=(180, 180, 3)
@@ -55,7 +62,6 @@ def create_main_layer(model_type, num_classes=6):
     model.compile()
     return model
 
-
 def train_model(train_ds, val_ds, model_type, epochs):
     num_classes = 6
 
@@ -73,39 +79,12 @@ def train_model(train_ds, val_ds, model_type, epochs):
     model.fit(train_ds, validation_data=val_ds, epochs=epochs)
     return core_model
 
-
-def load_data(data_dir):
-    batch_size = 32
-    img_height = 180
-    img_width = 180
-
-    all_train_ds = image_dataset_from_directory(data_dir,
-                                            validation_split=0.2,
-                                            subset="training",
-                                            seed=123,
-                                            image_size=(img_height, img_width),
-                                            batch_size=batch_size)
-    valid_batches = len(all_train_ds)//5
-    train_ds = all_train_ds.skip(valid_batches)
-    val_ds = all_train_ds.take(valid_batches)
-    test_ds = image_dataset_from_directory(data_dir,
-                                          validation_split=0.2,
-                                          subset="validation",
-                                          seed=123,
-                                          image_size=(img_height, img_width),
-                                          batch_size=batch_size)
-    return train_ds, val_ds, test_ds
-
-
 def load_model(model_dir):
     return tf.keras.models.load_model(model_dir)
 
-
-def preproc_pipeline_trashnet(data_dir, model_type, save_to, epochs=5):
-    train_ds, val_ds, test_ds = load_data(data_dir)
-    model = train_model(train_ds, val_ds, model_type, epochs)
-    model.save(save_to)
-
+def save_model(reg):
+    """ method that saves the model into a .joblib file and uploads it on Google Storage /models folder """
+    pass
 
 if __name__ == "__main__":
     model_type="standard"
