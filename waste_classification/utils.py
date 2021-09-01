@@ -1,7 +1,17 @@
 import pandas as pd
 import json
 import shutil
+#----------------------------
+#METRICS GO HERE
+#----------------------------
 
+
+
+
+
+#----------------------------
+#TACO JSON PARSER
+#----------------------------
 # dict converting taco numbered categories into trashnet string categories
 category_conversion = {}
 category_conversion['metal'] = [0, 8, 10, 11, 12, 28]
@@ -12,7 +22,6 @@ category_conversion['plastic'] = [4, 5, 7, 24, 27, 43, 44, 47, 49, 55]
 category_conversion['trash'] = [1, 2, 3, 22, 25, 29, 35, 36, 37, 38, 39, 40, 41, 42, 45, 46,
                                 48, 50, 51, 52, 53, 54, 57, 58, 59]
 
-
 def move_rename_jsons(my_path):
     """moves the jsons into one directory and renames them by batch"""
     # you will need to choose or create a directory called "annotations" inside TACO/data for second part of shutil
@@ -20,7 +29,6 @@ def move_rename_jsons(my_path):
         shutil.copy(f'{my_path}/TACO/data/batch_{i}/annotations.json',
                     f'{my_path}/TACO/data/annotations/batch_{i}_annotations.json')
     return None
-
 
 def open_json(n, my_path):
     """opens the json for taco batch and extracts the image and category data"""
@@ -30,14 +38,12 @@ def open_json(n, my_path):
     category_data = data['annotations']
     return image_data, category_data
 
-
 def image_ids(image_data):
     """ returns a dict with image_ids and image file names"""
     image_files = {}
     for item in image_data:
         image_files[item['id']] = item['file_name']
     return image_files
-
 
 def image_categories(category_data):
     """ returns a dict with the image_ids and the taco category numbers
@@ -51,7 +57,6 @@ def image_categories(category_data):
     for key in image_categories_dict:
         image_categories_dict[key] = list(set(image_categories_dict[key]))
     return image_categories_dict
-
 
 def compatible_images(image_categories):
     """ returns a dict with image_id and category, only includes images that
@@ -79,7 +84,6 @@ def compatible_images(image_categories):
                     if len(v) <= 1}
     return final_images
 
-
 def move_images(n, final_images, image_files, my_path):
     """creates dataframe of images to be moved and moves them to relevant
     trashnet folder"""
@@ -95,7 +99,6 @@ def move_images(n, final_images, image_files, my_path):
         shutil.copy(f'{my_path}/TACO/data/batch_{n}/{row["filename"]}',
                     f'{my_path}/TACO/data/{row["category"]}/batch_{n}{row["filename"]}')
     return None
-
 
 def get_tacos(my_path):
     """loops through all jsons and applies the above functions in order to unpack
