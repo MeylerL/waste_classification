@@ -7,13 +7,13 @@ import os
 import PIL
 import PIL.Image
 from tensorflow.keras.preprocessing import image_dataset_from_directory
-from waste_classification.params import BUCKET_NAME, BUCKET_TRAIN_DATA_PATH_TACO, BUCKET_TRAIN_DATA_PATH_TRASHNET
+from waste_classification.params import BUCKET_FOLDER, TACO_BUCKET_FILE_NAME, TRASHNET_BUCKET_FILE_NAME, BUCKET_NAME, BUCKET_TRAIN_DATA_PATH_TACO, BUCKET_TRAIN_DATA_PATH_TRASHNET
 
 def load_trashnet(gcp=False):
     """loads trashnet data from files within gcp if gcp True. Otherwise loads from local dataset.
     Returns train_ds, val_ds, test_ds as pandas dataframes."""
     if gcp:
-      directory = "gs://{BUCKET_NAME}/{BUCKET_TRAIN_DATA_PATH_TRASHNET}"
+      directory = f"gs://{BUCKET_NAME}/{BUCKET_FOLDER}/{TRASHNET_BUCKET_FILE_NAME}"
     else:
       #uses resized dataset on local computer
       directory = "../raw_data/dataset-resized/"
@@ -43,7 +43,7 @@ def load_TACO(gcp=False):
     """loads TACOS data from files within gcp if gcp True. Otherwise loads from local dataset.
     Returns train_ds, val_ds, test_ds as pandas dataframes."""
     if gcp:
-      directory = "gs://{BUCKET_NAME}/{BUCKET_TRAIN_DATA_PATH_TACO}"
+      directory = f"gs://{BUCKET_NAME}/{BUCKET_FOLDER}/{TACO_BUCKET_FILE_NAME}"
     else:
       #uses dataset on local computer. For this, make sure that the folders called
       #paper, plastic, trash, cardboard, metal are in a folder called "cat_fodlers" under TACO/data
