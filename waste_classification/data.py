@@ -71,13 +71,13 @@ def load_TACO(gcp=False):
 
 def get_data_TACO():
     '''returns a TACO train_ds, val_ds, test_ds from GCP'''
-    train_ds, val_ds, test_ds = load_TACO(gcp=True)
+    train_ds, val_ds, test_ds = load_TACO(gcp=False)
     return train_ds, val_ds, test_ds
 
 def get_data_trashnet():
     '''returns a trashnet train_ds, val_ds, test_ds from GCP'''
     print("hi")
-    train_ds, val_ds, test_ds = load_trashnet(gcp=True)
+    train_ds, val_ds, test_ds = load_trashnet(gcp=False)
     return train_ds, val_ds, test_ds
 
 if __name__ == '__main__':
