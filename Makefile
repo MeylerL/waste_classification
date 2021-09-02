@@ -69,7 +69,7 @@ RUNTIME_VERSION=1.15
 
 PACKAGE_NAME=waste_classification
 # FILENAME=gcp_trainer
-FILENAME=data2
+FILENAME=data
 
 JOB_NAME=waste_management_training_pipeline_$(shell date +'%Y%m%d_%H%M%S')
 
