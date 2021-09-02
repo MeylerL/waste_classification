@@ -91,3 +91,12 @@ upload_trashnet_data:
 
 upload_TACO_data:
 	@gsutil cp -r ${LOCAL_PATH_TACO} gs://${BUCKET_NAME}/${BUCKET_FOLDER}/${TACO_BUCKET_FILE_NAME}
+
+# gcloud ai-platform jobs submit training ${JOB_NAME} \
+# 	--job-dir gs://${BUCKET_NAME}/${BUCKET_TRAINING_FOLDER}  \
+# 	--package-path ${PACKAGE_NAME} \
+# 	--module-name ${PACKAGE_NAME}.${FILENAME} \
+# 	--python-version=${PYTHON_VERSION} \
+#		--runtime-version=${RUNTIME_VERSION} \
+# 	--region ${REGION} \
+# 	--stream-logs
