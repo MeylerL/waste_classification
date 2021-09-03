@@ -1,6 +1,10 @@
 import os
 package_parent = os.path.dirname(os.getcwd())
 package_directory = os.getcwd()
+
+# for trainer
+MLFLOW_URI = "https://mlflow.lewagon.co/"
+
 #general paths:
 TRASHNET_RESIZED = os.path.join(package_parent, "raw_data", "dataset-resized")
 #for GCP
