@@ -1,0 +1,4 @@
+artifact_location: file:///Users/Lucy/code/MeylerL/waste_classification/waste_classification/mlruns/1
+experiment_id: '1'
+lifecycle_stage: active
+name: waste_classification_first_model

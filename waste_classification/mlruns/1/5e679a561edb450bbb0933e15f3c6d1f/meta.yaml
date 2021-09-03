@@ -1,0 +1,15 @@
+artifact_uri: file:///Users/Lucy/code/MeylerL/waste_classification/waste_classification/mlruns/1/5e679a561edb450bbb0933e15f3c6d1f/artifacts
+end_time: null
+entry_point_name: ''
+experiment_id: '1'
+lifecycle_stage: active
+name: ''
+run_id: 5e679a561edb450bbb0933e15f3c6d1f
+run_uuid: 5e679a561edb450bbb0933e15f3c6d1f
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1630672105175
+status: 1
+tags: []
+user_id: unknown
