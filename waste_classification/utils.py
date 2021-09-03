@@ -13,14 +13,14 @@ import shutil
 #TACO JSON PARSER
 #----------------------------
 # dict converting taco numbered categories into trashnet string categories
-category_conversion = {}
-category_conversion['metal'] = [0, 8, 10, 11, 12, 28]
-category_conversion['cardboard'] = [13, 14, 15, 16, 17, 18, 19, 20]
-category_conversion['glass'] = [6, 9, 23, 26]
-category_conversion['paper'] = [21, 30, 31, 32, 33, 34]
-category_conversion['plastic'] = [4, 5, 7, 24, 27, 43, 44, 47, 49, 55]
-category_conversion['trash'] = [1, 2, 3, 22, 25, 29, 35, 36, 37, 38, 39, 40, 41, 42, 45, 46,
-                                48, 50, 51, 52, 53, 54, 57, 58, 59]
+# category_conversion = {}
+# category_conversion['metal'] = [0, 8, 10, 11, 12, 28]
+# category_conversion['cardboard'] = [13, 14, 15, 16, 17, 18, 19, 20]
+# category_conversion['glass'] = [6, 9, 23, 26]
+# category_conversion['paper'] = [21, 30, 31, 32, 33, 34]
+# category_conversion['plastic'] = [4, 5, 7, 24, 27, 43, 44, 47, 49, 55]
+# category_conversion['trash'] = [1, 2, 3, 22, 25, 29, 35, 36, 37, 38, 39, 40, 41, 42, 45, 46,
+#                                 48, 50, 51, 52, 53, 54, 57, 58, 59]
 
 # def move_rename_jsons(my_path):
 #     """moves the jsons into one directory and renames them by batch"""
