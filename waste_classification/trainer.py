@@ -7,6 +7,7 @@ import PIL
 import PIL.Image
 import mlflow
 import numpy as np
+import time
 from memoized_property import memoized_property
 from glob import glob
 from waste_classification.data import get_data_trashnet
@@ -17,7 +18,7 @@ from tensorflow.keras.layers.experimental.preprocessing import Rescaling
 from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense
 from tensorflow.keras.losses import SparseCategoricalCrossentropy
 from google.cloud import storage
-from waste_classification.params import LOCAL_PATH_TRASHNET, package_parent
+from waste_classification.params import  MLFLOW_URI, LOCAL_PATH_TRASHNET, package_parent
 from waste_classification.data import get_data_trashnet
 from mlflow.tracking import MlflowClient
 
@@ -28,6 +29,7 @@ class Trainer():
         self.train_ds_local = None
         self.val_ds_local = None
         self.test_ds_local = None
+        self.mlflow = True
 
     def augment_trashnet(self):
         augmentation = Sequential(
@@ -81,6 +83,7 @@ class Trainer():
         # AUTOTUNE = tf.data.experimental.AUTOTUNE
         # train_ds = self.train_ds_local.cache().prefetch(buffer_size=AUTOTUNE)
         # val_ds = self.val_ds_local.cache().prefetch(buffer_size=AUTOTUNE)
+        tic = time.time()
         core_model = self.create_main_layer()
         model = Sequential([
             self.augment_trashnet(),
@@ -91,7 +94,9 @@ class Trainer():
                         metrics=['accuracy'])
         # model.fit(train_ds, validation_data=val_ds, epochs=epochs)
         model.fit(self.train_ds_local, validation_data=self.val_ds_local, epochs=epochs)
-        self.mlflow_log_metric(model_type, 0.99)
+        self.mlflow_log_metric("epochs", epochs)
+         # mlflow logs
+        self.mlflow_log_metric("train_time", int(time.time() - tic))
         return model
 
     def load_model(self, model_dir):
@@ -119,9 +124,8 @@ class Trainer():
 
     @memoized_property
     def mlflow_client(self):
-        client = MlflowClient()
-        mlflow.set_tracking_uri("https://mlflow.lewagon.co/")
-        return client
+        mlflow.set_tracking_uri(MLFLOW_URI)
+        return MlflowClient()
 
     @memoized_property
     def get_experiment_id(self):
@@ -135,16 +139,13 @@ class Trainer():
         return self.mlflow_client.create_run(self.get_experiment_id)
 
     def mlflow_log_param(self, param_name, value):
-        print("before params")
-        self.mlflow_client.log_param(self.mlflow_run.info.run_id, param_name, value)
-        print("after params")
+        if self.mlflow:
+            self.mlflow_client.log_param(self.mlflow_run.info.run_id, param_name, value)
+
 
     def mlflow_log_metric(self, metric_name, value):
-        print("starting logging metric")
-        self.mlflow_client.log_metric(self.mlflow_run.info.run_id, metric_name, value)
-        print("ending logging metric")
-
-
+        if self.mlflow:
+            self.mlflow_client.log_metric(self.mlflow_run.info.run_id, metric_name, value)
 
 
 
@@ -157,4 +158,4 @@ if __name__ == "__main__":
                               save_to=model_dir,
                               epochs=1)
     model = t.train_model(model_type="standard")
-    confusion, p = t.compute_confusion_matrix(model_dir, data_dir)
+    confusion = t.compute_confusion_matrix(model_dir, data_dir)
