@@ -1,6 +1,10 @@
 import os
 package_parent = os.path.dirname(os.getcwd())
 package_directory = os.getcwd()
+
+# for trainer
+MLFLOW_URI = "https://mlflow.lewagon.co/"
+
 #general paths:
 TRASHNET_RESIZED = os.path.join(package_parent, "raw_data", "dataset-resized")
 #for GCP
@@ -26,4 +30,3 @@ CATEGORY_CONVERSION['paper'] = [21, 30, 31, 32, 33, 34, 20]
 CATEGORY_CONVERSION['plastic'] = [
     4, 5, 7, 24, 27, 44, 47, 49, 55, 29, 21, 36, 38, 39]
 CATEGORY_CONVERSION['trash'] = [1, 3, 22, 35, 42, 46, 51, 57, 58]
-
