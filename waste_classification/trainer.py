@@ -144,10 +144,6 @@ class Trainer():
         self.mlflow_client.log_metric(self.mlflow_run.info.run_id, metric_name, value)
         print("ending logging metric")
 
-
-
-
-
 if __name__ == "__main__":
     data_dir = LOCAL_PATH_TRASHNET
     model_dir = os.path.join(package_parent, "model_standard")

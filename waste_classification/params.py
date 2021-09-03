@@ -23,7 +23,8 @@ CATEGORY_CONVERSION['metal'] = [0, 8, 10, 11, 12, 28, 52]
 CATEGORY_CONVERSION['cardboard'] = [13, 17, 19]
 CATEGORY_CONVERSION['glass'] = [6, 9, 23, 26]
 CATEGORY_CONVERSION['paper'] = [21, 30, 31, 32, 33, 34, 20]
-CATEGORY_CONVERSION['plastic'] = [
-    4, 5, 7, 24, 27, 44, 47, 49, 55, 29, 21, 36, 38, 39]
+CATEGORY_CONVERSION['plastic'] = [4, 5, 7, 24, 27, 44, 47, 49, 55, 29, 21, 36, 38, 39]
 CATEGORY_CONVERSION['trash'] = [1, 3, 22, 35, 42, 46, 51, 57, 58]
 
+if __name__ == "__main__":
+    print(os.path.exists(TACO_path), TACO_path)
