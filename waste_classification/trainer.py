@@ -17,6 +17,7 @@ from tensorflow.keras.layers.experimental.preprocessing import Rescaling
 from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense
 from tensorflow.keras.losses import SparseCategoricalCrossentropy
 from google.cloud import storage
+from waste_classification.params import LOCAL_PATH_TRASHNET, package_parent
 from waste_classification.data import get_data_trashnet
 from mlflow.tracking import MlflowClient
 
@@ -148,9 +149,8 @@ class Trainer():
 
 
 if __name__ == "__main__":
-    data_dir = "../raw_data/dataset-original/"
-    model_dir = "../../waste_models"
-    model_type = "standard"
+    data_dir = LOCAL_PATH_TRASHNET
+    model_dir = os.path.join(package_parent, "model_standard")
     t = Trainer()
     t.preproc_pipeline_trashnet(data_dir=data_dir,
                               model_type="standard",
