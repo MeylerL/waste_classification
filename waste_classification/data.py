@@ -8,7 +8,7 @@ import PIL
 from tensorflow.keras.preprocessing import image_dataset_from_directory
 from pathlib import Path
 import tempfile
-from waste_classification.params import BUCKET_FOLDER, TACO_BUCKET_FILE_NAME, TRASHNET_BUCKET_FILE_NAME, BUCKET_NAME, BUCKET_TRAIN_DATA_PATH_TACO, BUCKET_TRAIN_DATA_PATH_TRASHNET
+from waste_classification.params import BUCKET_FOLDER, TACO_BUCKET_FILE_NAME, TRASHNET_BUCKET_FILE_NAME, BUCKET_NAME, TRASHNET_RESIZED, LOCAL_PATH_TACO
 from PIL import Image, ImageFilter
 from shutil import rmtree
 from waste_classification.params import TACO_path, annotations_path
@@ -58,7 +58,7 @@ def load_trashnet(gcp=False):
       directory = download_from_cloud(bucket_name=BUCKET_NAME, prefix=f"{BUCKET_FOLDER}/{TRASHNET_BUCKET_FILE_NAME}")
     else:
       #uses resized dataset on local computer
-      directory = "../../raw_data/dataset-resized/"
+      directory = TRASHNET_RESIZED
     batch_size = 32
     img_height = 180
     img_width = 180
@@ -90,7 +90,7 @@ def load_TACO(gcp=False):
     else:
       #uses dataset on local computer. For this, make sure that the folders called
       #paper, plastic, trash, cardboard, metal are in a folder called "cat_fodlers" under TACO/data
-      directory = "../raw_data/TACO/data/cat_folders/"
+      directory = LOCAL_PATH_TACO
     batch_size = 32
     img_height = 180
     img_width = 180
@@ -156,27 +156,26 @@ def save_cropped_TACO():
     df['y_min'] = df['y_min'] - padding
     df['x_max'] = df['x_max'] + padding
     df['y_max'] = df['y_max'] + padding
-    df.to_csv(TACO_path + 'InitialData.csv', index=False)
+    df.to_csv(os.path.join(TACO_path, 'InitialData.csv'), index=False)
     # path of the folder containing the original images
-    inPath = TACO_path+'data'
+    inPath = os.path.join(TACO_path, 'data')
     # path of the folder that will contain the cropped image
     #must create trainDataTACO folder locally! It will rest inside  TACO.
     #must also create subfolders inside trainDataTACO with names of all cetegories
-    outPath = TACO_path+'trainDataTACO'
+    outPath = os.path.join(TACO_path, 'trainDataTACO')
     df.reset_index(inplace=True, drop=True)
     # Save cropped images in a new directory
     for ind in df.index:
         bbox = (df['x_min'][ind], df['y_min'][ind],
                 df['x_max'][ind], df['y_max'][ind])
-        imagePath = os.path.join(inPath+'/'+df['filename'][ind])
+        imagePath = os.path.join(inPath, df['filename'][ind])
         img = Image.open(imagePath)
         img = img.crop(bbox)
         imageName = df["filename"][ind].split(
             '/')[0]+df["filename"][ind].split('/')[1]
         imageName = imageName[:-4]
         folder_name = df["category"][ind]
-        croppedImagePath = outPath + '/' + folder_name + \
-            "/" + imageName + 'cropped'+'.jpg'
+        croppedImagePath = os.path.join(outPath, folder_name, imageName,'cropped.jpg')
         img.save(croppedImagePath)
 
 def get_data_TACO():
