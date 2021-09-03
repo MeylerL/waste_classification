@@ -142,12 +142,9 @@ class Trainer():
         if self.mlflow:
             self.mlflow_client.log_param(self.mlflow_run.info.run_id, param_name, value)
 
-
     def mlflow_log_metric(self, metric_name, value):
         if self.mlflow:
             self.mlflow_client.log_metric(self.mlflow_run.info.run_id, metric_name, value)
-
-
 
 if __name__ == "__main__":
     data_dir = LOCAL_PATH_TRASHNET
