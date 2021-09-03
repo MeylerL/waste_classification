@@ -11,7 +11,7 @@ import tempfile
 from waste_classification.params import BUCKET_FOLDER, TACO_BUCKET_FILE_NAME, TRASHNET_BUCKET_FILE_NAME, BUCKET_NAME, TRASHNET_RESIZED, LOCAL_PATH_TACO
 from PIL import Image, ImageFilter
 from shutil import rmtree
-from waste_classification.params import TACO_path, annotations_path
+from waste_classification.params import TACO_path, annotations_path, CATEGORY_CONVERSION
 import json
 import numpy as np
 import os.path
@@ -20,7 +20,6 @@ from PIL import Image, ImageFilter
 # output_dir = TemporaryDirectory()
 
 dirs_to_remove = []
-
 
 def cleanup_tmp_dirs():
     global dirs_to_remove
@@ -119,17 +118,9 @@ def save_cropped_TACO():
     anns = dataset['annotations']
     imgs = dataset['images']
     nr_annotations = len(anns)
-    category_conversion = {}
-    category_conversion['metal'] = [0, 8, 10, 11, 12, 28]
-    category_conversion['cardboard'] = [13, 14, 15, 16, 17, 18, 19, 20]
-    category_conversion['glass'] = [6, 9, 23, 26]
-    category_conversion['paper'] = [21, 30, 31, 32, 33, 34]
-    category_conversion['plastic'] = [4, 5, 7, 24, 27, 43, 44, 47, 49, 55]
-    category_conversion['trash'] = [1, 2, 3, 22, 25, 29, 35, 36, 37,
-                                38, 39, 40, 41, 42, 45, 46, 48, 50, 51, 52, 53, 54, 57, 58, 59]
     cropping_df = pd.DataFrame(columns=["image_id", "cat_name"])
     for ann in range(nr_annotations):
-        for cat_name, type_nums in category_conversion.items():
+        for cat_name, type_nums in CATEGORY_CONVERSION.items():
             if anns[ann]["category_id"] in type_nums:
                 cropping_df = cropping_df.append({"image_id": anns[ann]["image_id"], "segmentation": anns[ann]["segmentation"], "area": anns[ann]
                                                 ["area"], "iscrowd": anns[ann]["iscrowd"], "bbox": anns[ann]["bbox"], "cat_name": cat_name}, ignore_index=True)
