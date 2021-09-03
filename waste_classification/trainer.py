@@ -1,3 +1,4 @@
+from re import M
 import tensorflow as tf
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -6,6 +7,7 @@ import PIL
 import PIL.Image
 import mlflow
 import numpy as np
+from memoized_property import memoized_property
 from glob import glob
 from waste_classification.data import get_data_trashnet
 from tensorflow.keras.layers.experimental.preprocessing import Rescaling, RandomRotation, RandomFlip
@@ -43,8 +45,8 @@ class Trainer():
         # model.save(save_to)
 
 
-    def create_main_layer(model_type="standard", num_classes=6):
-        model_type = "ResNet50"
+    def create_main_layer(self, model_type="standard", num_classes=6):
+        model_type = "standard"
         input_shape=(180, 180, 3)
         if model_type == "ResNet50":
             from tensorflow.keras.applications import ResNet50
@@ -71,6 +73,7 @@ class Trainer():
             Dense(num_classes, activation='softmax')
         ])
         model.compile()
+        self.mlflow_log_param(model_type, "i am a parameter")
         return model
 
     def train_model(self, model_type, epochs=1):
@@ -87,6 +90,7 @@ class Trainer():
                         metrics=['accuracy'])
         # model.fit(train_ds, validation_data=val_ds, epochs=epochs)
         model.fit(self.train_ds_local, validation_data=self.val_ds_local, epochs=epochs)
+        self.mlflow_log_metric(model_type, 0.99)
         return model
 
     def load_model(self, model_dir):
@@ -96,9 +100,9 @@ class Trainer():
     # """ method that saves the model into a .joblib file and uploads it on Google Storage /models folder """
     # pass
 
-    def compute_confusion_matrix(self, model_dir, data_dir, output_plot_fn):
+    def compute_confusion_matrix(self, model_dir, data_dir):
         train_ds, val_ds, test_ds = get_data_trashnet()
-        model = self.load_model(model_dir)
+        model = self.train_model(model_type="standard")
         confusion_matrix = None
         for batch_input, batch_output in val_ds:
             p = tf.argmax(model(batch_input), -1)
@@ -109,39 +113,48 @@ class Trainer():
                 confusion_matrix += c
         labels = list(os.walk(data_dir))[0][1]
         sns.heatmap(confusion_matrix.numpy(), annot=True, xticklabels=labels, yticklabels=labels)
-        plt.savefig(output_plot_fn)
-        print(f"confusion matrix plot saved at {output_plot_fn}")
+        plt.savefig(model_dir)
+        print(f"confusion matrix plot saved at {model_dir}")
 
+    @memoized_property
     def mlflow_client(self):
         client = MlflowClient()
         mlflow.set_tracking_uri("https://mlflow.lewagon.co/")
         return client
 
+    @memoized_property
     def get_experiment_id(self):
         try:
-            return self.mlflow_client().create_experiment(self.experiment_name)
-        except:
-            return self.mlflow_client().get_experiment_by_name(self.experiment_name).experiment_id
+            return self.mlflow_client.create_experiment(self.experiment_name)
+        except BaseException:
+            return self.mlflow_client.get_experiment_by_name(self.experiment_name).experiment_id
 
+    @memoized_property
     def mlflow_run(self):
-        return self.mlflow_client().create_run(self.get_experiment_id())
+        return self.mlflow_client.create_run(self.get_experiment_id)
 
     def mlflow_log_param(self, param_name, value):
-        self.mlflow_client().log_param(self.mlflow_run().info.run_id, param_name, value)
+        print("before params")
+        self.mlflow_client.log_param(self.mlflow_run.info.run_id, param_name, value)
+        print("after params")
 
     def mlflow_log_metric(self, metric_name, value):
-        self.mlflow_client().log_metric(self.mlflow_run().info.run_id, metric_name, value)
+        print("starting logging metric")
+        self.mlflow_client.log_metric(self.mlflow_run.info.run_id, metric_name, value)
+        print("ending logging metric")
+
+
 
 
 
 if __name__ == "__main__":
-    data_dir = "../../raw_data/dataset-original/"
-    model_dir = "../../model_standard"
+    data_dir = "../raw_data/dataset-original/"
+    model_dir = "../../waste_models"
+    model_type = "standard"
     t = Trainer()
     t.preproc_pipeline_trashnet(data_dir=data_dir,
                               model_type="standard",
                               save_to=model_dir,
                               epochs=1)
-    t.train_model(model_type="standard")
-
-    # t.compute_confusion_matrix(model_dir, data_dir, f"../../confusion_matrix_{model_type}")
+    model = t.train_model(model_type="standard")
+    confusion, p = t.compute_confusion_matrix(model_dir, data_dir)
