@@ -8,7 +8,7 @@ import PIL
 from tensorflow.keras.preprocessing import image_dataset_from_directory
 from pathlib import Path
 import tempfile
-from waste_classification.params import BUCKET_FOLDER, TACO_BUCKET_FILE_NAME, TRASHNET_BUCKET_FILE_NAME, BUCKET_NAME, TRASHNET_RESIZED, LOCAL_PATH_TACO
+from waste_classification.params import BUCKET_FOLDER, TACO_BUCKET_FILE_NAME, TRASHNET_BUCKET_PREFIX, BUCKET_NAME, TRASHNET_RESIZED, LOCAL_PATH_TACO
 from PIL import Image, ImageFilter
 from shutil import rmtree
 from waste_classification.params import TACO_path, annotations_path, CATEGORY_CONVERSION
@@ -17,67 +17,34 @@ import numpy as np
 import os.path
 from PIL import Image, ImageFilter
 
-# output_dir = TemporaryDirectory()
 
-dirs_to_remove = []
-
-def cleanup_tmp_dirs():
-    global dirs_to_remove
-    for d in dirs_to_remove:
-        rmtree(d)
-
-
-def download_from_cloud(bucket_name, prefix):
-    global dirs_to_remove
-    output_dir = tempfile.mkstemp()[1]
-    dirs_to_remove.append(output_dir)
-    os.remove(output_dir)
-    print(f"downloading data from Google cloud to {output_dir}")
-
-    storage_client = storage.Client()
-    bucket = storage_client.get_bucket(bucket_or_name=bucket_name)
-    blobs = list(bucket.list_blobs(prefix=prefix))  # Get list of files
-    for blob in blobs:
-        if blob.name.endswith("/"):
-            continue
-        print(f"downloading {blob.name}")
-        file_split = blob.name.split("/")
-        directory = "/".join([output_dir]+file_split[0:-1])
-        fn = os.path.join(directory, file_split[-1])
-        Path(directory).mkdir(parents=True, exist_ok=True)
-        blob.download_to_filename(fn)
-    print("downloading data from Google cloud DONE")
-    return output_dir
-
-def load_trashnet(gcp=False):
-    """loads trashnet data from files within gcp if gcp True. Otherwise loads from local dataset.
-    Returns train_ds, val_ds, test_ds as pandas dataframes."""
+def get_data_trashnet(gcp=False):
     if gcp:
-      # directory = f"gs://{BUCKET_NAME}/{BUCKET_FOLDER}/{TRASHNET_BUCKET_FILE_NAME}"
-      directory = download_from_cloud(bucket_name=BUCKET_NAME, prefix=f"{BUCKET_FOLDER}/{TRASHNET_BUCKET_FILE_NAME}")
+        directory = f"gs://{BUCKET_NAME}/{TRASHNET_BUCKET_PREFIX}"
+        from tensorflow.data.experimental import load as load_dataset
+        return tuple(load_dataset(f"{directory}_{i}", compression="GZIP") for i in range(3))
     else:
-      #uses resized dataset on local computer
-      directory = TRASHNET_RESIZED
-    batch_size = 32
-    img_height = 180
-    img_width = 180
-    all_train_ds = image_dataset_from_directory(directory,
-                                                validation_split=0.2,
-                                                subset="training",
-                                                seed=123,
-                                                image_size=(
-                                                    img_height, img_width),
-                                                batch_size=batch_size)
-    valid_batches = len(all_train_ds)//5
-    train_ds = all_train_ds.skip(valid_batches)
-    val_ds = all_train_ds.take(valid_batches)
-    test_ds = image_dataset_from_directory(directory,
-                                          validation_split=0.2,
-                                          subset="validation",
-                                          seed=123,
-                                          image_size=(img_height, img_width),
-                                          batch_size=batch_size)
-    return train_ds, val_ds, test_ds
+        directory = TRASHNET_RESIZED
+        batch_size = 32
+        img_height = 180
+        img_width = 180
+        all_train_ds = image_dataset_from_directory(directory,
+                                                    validation_split=0.2,
+                                                    subset="training",
+                                                    seed=123,
+                                                    image_size=(
+                                                        img_height, img_width),
+                                                    batch_size=batch_size)
+        valid_batches = len(all_train_ds)//5
+        train_ds = all_train_ds.skip(valid_batches)
+        val_ds = all_train_ds.take(valid_batches)
+        test_ds = image_dataset_from_directory(directory,
+                                            validation_split=0.2,
+                                            subset="validation",
+                                            seed=123,
+                                            image_size=(img_height, img_width),
+                                            batch_size=batch_size)
+        return train_ds, val_ds, test_ds
 
 
 def load_TACO(gcp=False):
@@ -174,14 +141,7 @@ def get_data_TACO():
     train_ds, val_ds, test_ds = load_TACO(gcp=False)
     return train_ds, val_ds, test_ds
 
-def get_data_trashnet():
-    '''returns a trashnet train_ds, val_ds, test_ds from GCP'''
-    print("hi")
-    train_ds, val_ds, test_ds = load_trashnet(gcp=False)
-    return train_ds, val_ds, test_ds
-
 if __name__ == '__main__':
-    df, df1, df2 = get_data_trashnet()
+    df, df1, df2 = get_data_trashnet(gcp=True)
     print(len(df))
-    cleanup_tmp_dirs()
     print("SUCCESS")
