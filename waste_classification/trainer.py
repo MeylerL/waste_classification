@@ -56,6 +56,21 @@ class Trainer():
             base_model = ResNet50(input_shape=input_shape, include_top=False, weights="imagenet")
             for layer in base_model.layers:
                 layer.trainable = False
+        elif model_type == "VGG16":
+            from tensorflow.keras.applications import VGG16
+            base_model = VGG16(input_shape=input_shape,
+                               include_top=False,
+                               weights="imagenet")
+            for layer in base_model.layers:
+                layer.trainable = False
+        elif model_type == "DenseNet121":
+            from tensorflow.keras.applications import DenseNet121
+            base_model = DenseNet121(include_top=False,
+                                     weights="imagenet",
+                                     input_shape=input_shape)
+            for layer in base_model.layers:
+                layer.trainable = False
+
         elif model_type == "standard":
             normalization_layer = Rescaling(1./255, input_shape=input_shape)
             base_model = Sequential([
@@ -95,7 +110,7 @@ class Trainer():
         # model.fit(train_ds, validation_data=val_ds, epochs=epochs)
         model.fit(self.train_ds_local, validation_data=self.val_ds_local, epochs=epochs)
         self.mlflow_log_metric("epochs", epochs)
-         # mlflow logs
+        # mlflow logs
         self.mlflow_log_metric("train_time", int(time.time() - tic))
         return model
 
