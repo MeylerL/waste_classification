@@ -15,7 +15,9 @@ def load_datasets(location):
 
 import pdb
 print("START")
-data.save_cropped_TACO()
+# data.save_cropped_TACO()
+data = data.load_TACO(gcp=True)
+# save_datasets(data, "../taco")
 print("DONE")
 
 # data = data.get_data_trashnet(gcp=False)
