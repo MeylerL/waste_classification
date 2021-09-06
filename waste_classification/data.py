@@ -16,6 +16,8 @@ import json
 import numpy as np
 import os.path
 from PIL import Image, ImageFilter
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
+
 
 dirs_to_remove = []
 
@@ -67,11 +69,11 @@ def load_trashnet(gcp=False):
     """loads trashnet data from files within gcp if gcp True. Otherwise loads from local dataset.
     Returns train_ds, val_ds, test_ds as pandas dataframes."""
     if gcp:
-      # directory = f"gs://{BUCKET_NAME}/{BUCKET_FOLDER}/{TRASHNET_BUCKET_FILE_NAME}"
-      directory = download_from_cloud(bucket_name=BUCKET_NAME, prefix=f"{BUCKET_FOLDER}/{TRASHNET_BUCKET_FILE_NAME}")
+        # directory = f"gs://{BUCKET_NAME}/{BUCKET_FOLDER}/{TRASHNET_BUCKET_FILE_NAME}"
+        directory = download_from_cloud(bucket_name=BUCKET_NAME, prefix=f"{BUCKET_FOLDER}/{TRASHNET_BUCKET_FILE_NAME}")
     else:
-      #uses resized dataset on local computer
-      directory = TRASHNET_RESIZED
+        #uses resized dataset on local computer
+        directory = TRASHNET_RESIZED
     batch_size = 32
     img_height = 180
     img_width = 180
@@ -94,15 +96,61 @@ def load_trashnet(gcp=False):
     return train_ds, val_ds, test_ds
 
 
+def load_trashnet_datagen(gcp=False):
+    """loads trashnet data from files within gcp if gcp True. Otherwise loads from local dataset.
+    Returns train_ds, val_ds, test_ds as pandas dataframes."""
+    if gcp:
+        # directory = f"gs://{BUCKET_NAME}/{BUCKET_FOLDER}/{TRASHNET_BUCKET_FILE_NAME}"
+        directory = download_from_cloud(bucket_name=BUCKET_NAME, prefix=f"{BUCKET_FOLDER}/{TRASHNET_BUCKET_FILE_NAME}")
+    else:
+        #uses resized dataset on local computer
+        directory = TRASHNET_RESIZED
+    batch_size = 32
+    img_height = 180
+    img_width = 180
+    train_datagen = ImageDataGenerator(rescale=1./255, rotation_range=5,
+                                       horizontal_flip=True,
+                                       zoom_range=0.4,
+                                       shear_range=45.0,
+                                       validation_split=0.2,
+                                       dtype='float32')
+
+    valid_datagen = ImageDataGenerator(rescale=1/ 255.0,
+                                       validation_split=0.2,
+                                       dtype='float32')
+
+    test_datagen  = ImageDataGenerator(rescale = 1.0/ 255.0)
+
+    train_ds = train_datagen.flow_from_directory(directory=directory,
+                                                 target_size=(img_height,
+                                                              img_width),
+                                                 class_mode='categorical',
+                                                 batch_size=batch_size,
+                                                 subset='training')
+    valid_ds = valid_datagen.flow_from_directory(directory=directory,
+                                                 target_size=(img_height,
+                                                              img_width),
+                                                 class_mode='categorical',
+                                                 batch_size=batch_size,
+                                                 subset='validation')
+
+    test_ds = test_datagen.flow_from_directory(directory=directory,
+                                               target_size=(img_height,
+                                                            img_width),
+                                               class_mode='categorical',
+                                               batch_size=batch_size,
+                                               shuffle=False)
+    return train_ds, valid_ds, test_ds
+
+
+
 def load_TACO(gcp=False):
     """loads TACOS data from files within gcp if gcp True. Otherwise loads from local dataset.
     Returns train_ds, val_ds, test_ds as pandas dataframes."""
     if gcp:
-      # directory = f"gs://{BUCKET_NAME}/{BUCKET_FOLDER}/{TACO_BUCKET_FILE_NAME}"
-      directory = download_from_cloud(bucket_name=BUCKET_NAME, prefix=f"{BUCKET_FOLDER}/{TACO_BUCKET_FILE_NAME}")
+        # directory = f"gs://{BUCKET_NAME}/{BUCKET_FOLDER}/{TACO_BUCKET_FILE_NAME}"
+        directory = download_from_cloud(bucket_name=BUCKET_NAME, prefix=f"{BUCKET_FOLDER}/{TACO_BUCKET_FILE_NAME}")
     else:
-      #uses dataset on local computer. For this, make sure that the folders called
-      #paper, plastic, trash, cardboard, metal, glass are in a folder called "cat_fodlers" under TACO/data
       directory = LOCAL_PATH_TACO
     batch_size = 32
     img_height = 180
@@ -192,7 +240,7 @@ def get_data_TACO():
 def get_data_trashnet():
     '''returns a trashnet train_ds, val_ds, test_ds from GCP'''
     print("hi")
-    train_ds, val_ds, test_ds = load_trashnet(gcp=False)
+    train_ds, val_ds, test_ds = load_trashnet_datagen(gcp=False)
     return train_ds, val_ds, test_ds
 
 if __name__ == '__main__':
