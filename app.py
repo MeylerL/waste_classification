@@ -9,7 +9,7 @@ st.set_page_config(
     layout="centered",  # wide
     initial_sidebar_state="auto")  # collapsed
 
-st.markdown("""# ♻️ WASTE CLASSIFIER ♻️
+st.markdown("""# ♻️ Waste Classifier ♻️
 
 #### “There is no such thing as ‘away’. When we throw anything away it must go somewhere.”
 – Annie Leonard""")
@@ -19,6 +19,7 @@ st.text("")
 """Welcome to our waste classifier. We can tell you if your waste is..."""
 
 columns = st.columns(6)
+new_size = (360, 360)
 cardboard_image = Image.open('images/cardboard44.jpg')
 cardboard = columns[0].image(cardboard_image, caption='Cardboard', use_column_width=True)
 glass_image = Image.open('images/glass9.jpg')
@@ -41,7 +42,7 @@ uploaded_file = st.file_uploader("Choose a image of waste for classification:", 
 
 if uploaded_file is not None:
     import time
-    'Activating neural networks...'
+
 
     # latest_iteration = st.empty()
     # bar = st.progress(0)
@@ -61,6 +62,7 @@ if uploaded_file is not None:
     imgrgb_df = imgrgb_df.to_numpy().reshape((180, 180, 3))
     st.write("Reshaping image... new shape is:")
     st.write(imgrgb_df.shape)
+    'Activating neural networks...'
 
     #st.success('Image classified!')
 
@@ -88,12 +90,14 @@ st.sidebar.write(f"""
     [Our Data](/#our-data)\n
     """)
 
-# v  # creat sidebar
-# hard_coded_toc = '''<h1>Waste Classification</h1>
-#             <a href="#Intro">Intro</a><br>
-#             <a href="#Magic commands">Magic commands</a><br>
-#             <a href="#Inline documentation">Inline documentation</a><br>
-#             <a href="#About">About</a><br>
-#         '''
 
-# st.sidebar.markdown(hard_coded_toc, unsafe_allow_html=True)
+toc = '''<h1>Waste Classification</h1>
+            <a href="#Intro">Intro</a><br>
+            <a href="#Magic commands">Magic commands</a><br>
+            <a href="#Inline documentation">Inline documentation</a><br>
+            <a href="#About">About</a><br>
+        '''
+
+st.sidebar.markdown(toc, unsafe_allow_html=True)
+st.markdown('# About')
+st.write('<a name="About"></a>', unsafe_allow_html=True)
