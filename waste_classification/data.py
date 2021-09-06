@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import os
 import PIL
-from tensorflow.keras.preprocessing import image_dataset_from_directory
+#from tensorflow.keras.preprocessing import image_dataset_from_directory
 from pathlib import Path
 import tempfile
 from waste_classification.params import BUCKET_FOLDER, TACO_BUCKET_FILE_NAME, TRASHNET_BUCKET_PREFIX, BUCKET_NAME, TRASHNET_RESIZED, LOCAL_PATH_TACO
@@ -16,7 +16,7 @@ import json
 import numpy as np
 import os.path
 from PIL import Image, ImageFilter
-
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
 
 def get_data_trashnet(gcp=False):
     if gcp:
@@ -46,16 +46,138 @@ def get_data_trashnet(gcp=False):
                                             batch_size=batch_size)
         return train_ds, val_ds, test_ds
 
+dirs_to_remove = []
+
+def cleanup_tmp_dirs():
+    global dirs_to_remove
+    for d in dirs_to_remove:
+        rmtree(d)
+
+def delete_trained_TACO_folders():
+    folder = LOCAL_PATH_TACO
+    for filename in os.listdir(folder):
+        file_path = os.path.join(folder, filename)
+        if os.path.isfile(file_path) or os.path.islink(file_path):
+            os.unlink(file_path)
+        elif os.path.isdir(file_path):
+            rmtree(file_path)
+
+def create_trained_TACO_folders():
+    categories =["paper", "plastic", "trash", "cardboard", "metal", "glass"]
+    parent_dir = LOCAL_PATH_TACO
+    for category in categories:
+        path = os.path.join(parent_dir, category)
+        os.makedirs(path)
+        print("Directory '% s' created" % category)
+
+def download_from_cloud(bucket_name, prefix):
+    global dirs_to_remove
+    output_dir = tempfile.mkstemp()[1]
+    dirs_to_remove.append(output_dir)
+    os.remove(output_dir)
+    print(f"downloading data from Google cloud to {output_dir}")
+
+    storage_client = storage.Client()
+    bucket = storage_client.get_bucket(bucket_or_name=bucket_name)
+    blobs = list(bucket.list_blobs(prefix=prefix))  # Get list of files
+    for blob in blobs:
+        if blob.name.endswith("/"):
+            continue
+        print(f"downloading {blob.name}")
+        file_split = blob.name.split("/")
+        directory = "/".join([output_dir]+file_split[0:-1])
+        fn = os.path.join(directory, file_split[-1])
+        Path(directory).mkdir(parents=True, exist_ok=True)
+        blob.download_to_filename(fn)
+    print("downloading data from Google cloud DONE")
+    return output_dir
+
+def load_trashnet(gcp=False):
+    """loads trashnet data from files within gcp if gcp True. Otherwise loads from local dataset.
+    Returns train_ds, val_ds, test_ds as pandas dataframes."""
+    if gcp:
+        # directory = f"gs://{BUCKET_NAME}/{BUCKET_FOLDER}/{TRASHNET_BUCKET_FILE_NAME}"
+        directory = download_from_cloud(bucket_name=BUCKET_NAME, prefix=f"{BUCKET_FOLDER}/{TRASHNET_BUCKET_FILE_NAME}")
+    else:
+        #uses resized dataset on local computer
+        directory = TRASHNET_RESIZED
+    batch_size = 32
+    img_height = 180
+    img_width = 180
+    all_train_ds = image_dataset_from_directory(directory,
+                                                validation_split=0.2,
+                                                subset="training",
+                                                seed=123,
+                                                image_size=(
+                                                    img_height, img_width),
+                                                batch_size=batch_size)
+    valid_batches = len(all_train_ds)//5
+    train_ds = all_train_ds.skip(valid_batches)
+    val_ds = all_train_ds.take(valid_batches)
+    test_ds = image_dataset_from_directory(directory,
+                                          validation_split=0.2,
+                                          subset="validation",
+                                          seed=123,
+                                          image_size=(img_height, img_width),
+                                          batch_size=batch_size)
+    return train_ds, val_ds, test_ds
+
+
+def load_trashnet_datagen(gcp=False):
+    """loads trashnet data from files within gcp if gcp True. Otherwise loads from local dataset.
+    Returns train_ds, val_ds, test_ds as pandas dataframes."""
+    if gcp:
+        # directory = f"gs://{BUCKET_NAME}/{BUCKET_FOLDER}/{TRASHNET_BUCKET_FILE_NAME}"
+        directory = download_from_cloud(bucket_name=BUCKET_NAME, prefix=f"{BUCKET_FOLDER}/{TRASHNET_BUCKET_FILE_NAME}")
+    else:
+        #uses resized dataset on local computer
+        directory = TRASHNET_RESIZED
+    batch_size = 32
+    img_height = 180
+    img_width = 180
+    train_datagen = ImageDataGenerator(rescale=1./255, rotation_range=5,
+                                       horizontal_flip=True,
+                                       zoom_range=0.4,
+                                       shear_range=45.0,
+                                       validation_split=0.2,
+                                       dtype='float32')
+
+    valid_datagen = ImageDataGenerator(rescale=1/ 255.0,
+                                       validation_split=0.2,
+                                       dtype='float32')
+
+    test_datagen  = ImageDataGenerator(rescale = 1.0/ 255.0)
+
+    train_ds = train_datagen.flow_from_directory(directory=directory,
+                                                 target_size=(img_height,
+                                                              img_width),
+                                                 class_mode='categorical',
+                                                 batch_size=batch_size,
+                                                 subset='training')
+    valid_ds = valid_datagen.flow_from_directory(directory=directory,
+                                                 target_size=(img_height,
+                                                              img_width),
+                                                 class_mode='categorical',
+                                                 batch_size=batch_size,
+                                                 subset='validation')
+
+    test_ds = test_datagen.flow_from_directory(directory=directory,
+                                               target_size=(img_height,
+                                                            img_width),
+                                               class_mode='categorical',
+                                               batch_size=batch_size,
+                                               shuffle=False)
+    return train_ds, valid_ds, test_ds
+
+
 
 def load_TACO(gcp=False):
     """loads TACOS data from files within gcp if gcp True. Otherwise loads from local dataset.
     Returns train_ds, val_ds, test_ds as pandas dataframes."""
     if gcp:
-      # directory = f"gs://{BUCKET_NAME}/{BUCKET_FOLDER}/{TACO_BUCKET_FILE_NAME}"
-      directory = download_from_cloud(bucket_name=BUCKET_NAME, prefix=f"{BUCKET_FOLDER}/{TACO_BUCKET_FILE_NAME}")
+        # directory = f"gs://{BUCKET_NAME}/{BUCKET_FOLDER}/{TACO_BUCKET_FILE_NAME}"
+        directory = download_from_cloud(bucket_name=BUCKET_NAME, prefix=f"{BUCKET_FOLDER}/{TACO_BUCKET_FILE_NAME}")
     else:
-      #uses dataset on local computer. For this, make sure that the folders called
-      #paper, plastic, trash, cardboard, metal are in a folder called "cat_fodlers" under TACO/data
       directory = LOCAL_PATH_TACO
     batch_size = 32
     img_height = 180
@@ -133,7 +255,8 @@ def save_cropped_TACO():
             '/')[0]+df["filename"][ind].split('/')[1]
         imageName = imageName[:-4]
         folder_name = df["category"][ind]
-        croppedImagePath = os.path.join(outPath, folder_name, imageName,'cropped.jpg')
+        croppedImagePath = os.path.join(
+            outPath, folder_name,  imageName+'cropped.jpg')
         img.save(croppedImagePath)
 
 def get_data_TACO():
@@ -142,6 +265,7 @@ def get_data_TACO():
     return train_ds, val_ds, test_ds
 
 if __name__ == '__main__':
-    df, df1, df2 = get_data_trashnet(gcp=True)
-    print(len(df))
-    print("SUCCESS")
+    delete_trained_TACO_folders()
+    print("FOLDERS DELETED!!")
+    create_trained_TACO_folders()
+    save_cropped_TACO()
