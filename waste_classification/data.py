@@ -8,7 +8,7 @@ import PIL
 #from tensorflow.keras.preprocessing import image_dataset_from_directory
 from pathlib import Path
 import tempfile
-from waste_classification.params import BUCKET_FOLDER, TACO_BUCKET_FILE_NAME, TRASHNET_BUCKET_FILE_NAME, BUCKET_NAME, TRASHNET_RESIZED, LOCAL_PATH_TACO
+from waste_classification.params import BUCKET_FOLDER, TACO_BUCKET_FILE_NAME, TRASHNET_BUCKET_PREFIX, BUCKET_NAME, TRASHNET_RESIZED, LOCAL_PATH_TACO
 from PIL import Image, ImageFilter
 from shutil import rmtree
 from waste_classification.params import TACO_path, annotations_path, CATEGORY_CONVERSION
@@ -18,6 +18,33 @@ import os.path
 from PIL import Image, ImageFilter
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 
+def get_data_trashnet(gcp=False):
+    if gcp:
+        directory = f"gs://{BUCKET_NAME}/{TRASHNET_BUCKET_PREFIX}"
+        from tensorflow.data.experimental import load as load_dataset
+        return tuple(load_dataset(f"{directory}_{i}", compression="GZIP") for i in range(3))
+    else:
+        directory = TRASHNET_RESIZED
+        batch_size = 32
+        img_height = 180
+        img_width = 180
+        all_train_ds = image_dataset_from_directory(directory,
+                                                    validation_split=0.2,
+                                                    subset="training",
+                                                    seed=123,
+                                                    image_size=(
+                                                        img_height, img_width),
+                                                    batch_size=batch_size)
+        valid_batches = len(all_train_ds)//5
+        train_ds = all_train_ds.skip(valid_batches)
+        val_ds = all_train_ds.take(valid_batches)
+        test_ds = image_dataset_from_directory(directory,
+                                            validation_split=0.2,
+                                            subset="validation",
+                                            seed=123,
+                                            image_size=(img_height, img_width),
+                                            batch_size=batch_size)
+        return train_ds, val_ds, test_ds
 
 dirs_to_remove = []
 
@@ -235,12 +262,6 @@ def save_cropped_TACO():
 def get_data_TACO():
     '''returns a TACO train_ds, val_ds, test_ds from GCP'''
     train_ds, val_ds, test_ds = load_TACO(gcp=False)
-    return train_ds, val_ds, test_ds
-
-def get_data_trashnet():
-    '''returns a trashnet train_ds, val_ds, test_ds from GCP'''
-    print("hi")
-    train_ds, val_ds, test_ds = load_trashnet_datagen(gcp=False)
     return train_ds, val_ds, test_ds
 
 if __name__ == '__main__':
