@@ -66,7 +66,7 @@ def create_trained_TACO_folders():
         print("Directory '% s' created" % category)
 
 
-def load_TACO(gcp=False):
+def get_data_TACO(gcp=False):
     """loads TACOS data from files within gcp if gcp True. Otherwise loads from local dataset."""
     if gcp:
         directory = f"gs://{BUCKET_NAME}/{TACO_BUCKET_PREFIX}"
@@ -158,10 +158,12 @@ def save_cropped_TACO():
             outPath, folder_name,  imageName+'cropped.jpg')
         img.save(croppedImagePath)
 
-def get_data_TACO():
-    '''returns a TACO train_ds, val_ds, test_ds from GCP'''
-    train_ds, val_ds, test_ds = load_TACO(gcp=False)
-    return train_ds, val_ds, test_ds
+
+def get_all_data(gcp=False):
+    taco_train, taco_val, taco_test = get_data_TACO(gcp)
+    trash_train, trash_val, trash_test = get_data_trashnet(gcp)
+    return taco_train.concatenate(taco_val).concatenate(taco_test).concatenate(trash_train), trash_val, trash_test
+
 
 if __name__ == '__main__':
     delete_trained_TACO_folders()
