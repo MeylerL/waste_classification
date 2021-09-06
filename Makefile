@@ -103,3 +103,6 @@ test_cloud:
 		--region ${REGION} \
 		--project le-wagon-bootcamp-319614 \
 	 	--stream-logs
+
+run_streamlit:
+	streamlit run app.py

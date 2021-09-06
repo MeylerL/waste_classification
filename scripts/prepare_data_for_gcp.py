@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 from tensorflow.data.experimental import save as save_dataset
 from waste_classification import data
 
@@ -17,15 +15,3 @@ import pdb
 print("START")
 data.save_cropped_TACO()
 print("DONE")
-
-# data = data.get_data_trashnet(gcp=False)
-# save_datasets(data, "../../trashnet")
-
-
-# data = data.get_data_TACO(gcp=False)
-# save_datasets(data, "../../TACO")
-
-# data2 = load_datasets("gs://wagon-data-699-waste_classification/tensorflow_datasets/trashnet")
-# data2 = load_datasets("gs://wagon-data-699-waste_classification/tensorflow_datasets/TACO")
-# print("SUCCESS")
-# import pdb; pdb.set_trace()
