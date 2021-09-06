@@ -15,12 +15,17 @@ from tensorflow.keras.layers.experimental.preprocessing import Rescaling, Random
 from tensorflow.keras import Sequential
 from tensorflow.keras.preprocessing import image_dataset_from_directory
 from tensorflow.keras.layers.experimental.preprocessing import Rescaling
-from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense
+from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, Dropout
 from tensorflow.keras.losses import SparseCategoricalCrossentropy
 from google.cloud import storage
 from waste_classification.params import  MLFLOW_URI, LOCAL_PATH_TRASHNET, package_parent
 from waste_classification.data import get_data_trashnet
 from mlflow.tracking import MlflowClient
+from tensorflow.keras.applications import DenseNet121, VGG16, ResNet50
+from tensorflow.keras.optimizers import Adam
+from keras.preprocessing import image
+from tensorflow.keras.callbacks import EarlyStopping
+
 
 
 class Trainer():
@@ -29,7 +34,9 @@ class Trainer():
         self.train_ds_local = None
         self.val_ds_local = None
         self.test_ds_local = None
+        self.model = None
         self.mlflow = True
+        self.smile = 'big'
 
     def augment_trashnet(self):
         augmentation = Sequential(
@@ -38,7 +45,7 @@ class Trainer():
         return augmentation
 
 
-    def preproc_pipeline_trashnet(self, data_dir, model_type, save_to, epochs=5):
+    def preproc_pipeline_trashnet(self, data_dir, model_type, save_to, epochs=1):
         train_ds, val_ds, test_ds = get_data_trashnet()
         self.train_ds_local = train_ds
         self.val_ds_local = val_ds
@@ -48,23 +55,20 @@ class Trainer():
         # model.save(save_to)
 
 
-    def create_main_layer(self, model_type="standard", num_classes=6):
-        model_type = "standard"
+    def create_main_layer(self, model_type="ResNet50", num_classes=6):
+        model_type = "ResNet50"
         input_shape=(180, 180, 3)
         if model_type == "ResNet50":
-            from tensorflow.keras.applications import ResNet50
             base_model = ResNet50(input_shape=input_shape, include_top=False, weights="imagenet")
             for layer in base_model.layers:
                 layer.trainable = False
         elif model_type == "VGG16":
-            from tensorflow.keras.applications import VGG16
             base_model = VGG16(input_shape=input_shape,
                                include_top=False,
                                weights="imagenet")
             for layer in base_model.layers:
                 layer.trainable = False
         elif model_type == "DenseNet121":
-            from tensorflow.keras.applications import DenseNet121
             base_model = DenseNet121(include_top=False,
                                      weights="imagenet",
                                      input_shape=input_shape)
@@ -88,11 +92,13 @@ class Trainer():
         model = Sequential([
             model,
             Dense(128, activation='relu'),
+            Dropout(0.2),
             Dense(num_classes, activation='softmax')
         ])
         model.compile()
         self.mlflow_log_param(model_type, "i am a parameter")
         return model
+
 
     def train_model(self, model_type, epochs=1):
         # AUTOTUNE = tf.data.experimental.AUTOTUNE
@@ -100,18 +106,24 @@ class Trainer():
         # val_ds = self.val_ds_local.cache().prefetch(buffer_size=AUTOTUNE)
         tic = time.time()
         core_model = self.create_main_layer()
-        model = Sequential([
-            self.augment_trashnet(),
+        model = Sequential([self.augment_trashnet(),
             core_model
         ])
-        model.compile(optimizer='adam',
-                        loss=SparseCategoricalCrossentropy(from_logits=False),
-                        metrics=['accuracy'])
-        # model.fit(train_ds, validation_data=val_ds, epochs=epochs)
-        model.fit(self.train_ds_local, validation_data=self.val_ds_local, epochs=epochs)
+        model.compile(Adam(),
+                      loss=SparseCategoricalCrossentropy(from_logits=False),
+                      metrics=['accuracy'])
+        history = model.fit(self.train_ds_local, validation_data=self.val_ds_local, epochs=epochs, callbacks=[
+            EarlyStopping(monitor='val_accuracy',patience=10)])
         self.mlflow_log_metric("epochs", epochs)
         # mlflow logs
         self.mlflow_log_metric("train_time", int(time.time() - tic))
+        self.model = model
+        plt.plot(history.history['accuracy'])
+        plt.plot(history.history['val_accuracy'])
+        plt.legend(['Training', 'Validation'])
+        plt.xlabel('epoch')
+        plt.savefig('Accuracy.jpg')
+        print(f"accuracy plot saved at Accuracy.jpg")
         return model
 
     def load_model(self, model_dir):
@@ -123,7 +135,7 @@ class Trainer():
 
     def compute_confusion_matrix(self, model_dir, data_dir):
         train_ds, val_ds, test_ds = get_data_trashnet()
-        model = self.train_model(model_type="standard")
+        model = self.model
         confusion_matrix = None
         for batch_input, batch_output in val_ds:
             p = tf.argmax(model(batch_input), -1)
@@ -136,6 +148,18 @@ class Trainer():
         sns.heatmap(confusion_matrix.numpy(), annot=True, xticklabels=labels, yticklabels=labels)
         plt.savefig(model_dir)
         print(f"confusion matrix plot saved at {model_dir}")
+
+
+
+    def evaluate_score(self):
+        self.model = model
+        train_ds, val_ds, test_ds = get_data_trashnet()
+        test_loss, test_acc = self.model.evaluate(test_ds)
+        print('Test loss: {} Test Acc: {}'.format(test_loss, test_acc))
+        self.mlflow_log_metric("Loss", test_loss)
+        self.mlflow_log_metric("Accuracy", test_acc)
+
+
 
     @memoized_property
     def mlflow_client(self):
@@ -163,11 +187,13 @@ class Trainer():
 
 if __name__ == "__main__":
     data_dir = LOCAL_PATH_TRASHNET
+    print(data_dir)
     model_dir = os.path.join(package_parent, "model_standard")
     t = Trainer()
     t.preproc_pipeline_trashnet(data_dir=data_dir,
-                              model_type="standard",
-                              save_to=model_dir,
-                              epochs=1)
-    model = t.train_model(model_type="standard")
+                                model_type="ResNet50",
+                                save_to=model_dir,
+                                epochs=1)
+    model = t.train_model(model_type="ResNet50")
     confusion = t.compute_confusion_matrix(model_dir, data_dir)
+    evaluate =  t.evaluate_score()
