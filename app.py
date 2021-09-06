@@ -41,7 +41,7 @@ st.text("")
 st.text("")
 st.set_option('deprecation.showfileUploaderEncoding', False)
 
-uploaded_file = st.file_uploader("Choose a image of waste for classification:", type="HEIC")
+uploaded_file = st.file_uploader("Choose a image of waste for classification:", type="JPG")
 
 if uploaded_file is not None:
     import time
@@ -59,6 +59,26 @@ if uploaded_file is not None:
 st.text("")
 st.text("")
 st.text("")
+
+st.markdown("# Our Data")
 """Many thanks to Pedro Proença and Pedro Simões of tacodataset.org as well as Gary Thung of trashnet for thier invaluable open source data."""
 
+#TEAM
+st.markdown("# Our Team")
+columns = st.columns(4)
+xin_image = Image.open("images/xin.jpeg")
+xin = columns[2].image(xin_image, caption='Xin Zhan', use_column_width=True)
+lucy_image = Image.open("images/lucy.jpeg")
+lucy = columns[0].image(lucy_image, caption='Lucy Meyler', use_column_width=True)
+jack_image = Image.open("images/jack.jpeg")
+jack = columns[1].image(jack_image, caption='Jack Riddleston', use_column_width=True)
+izzy_image = Image.open("images/izzy.JPG")
+izzy = columns[3].image(izzy_image, caption='Izzy Weber', use_column_width=True)
+
+st.sidebar.write(f"""
+    # Navigation
+    [The Classifier](//#waste-classifier)\n
+    [Our Team](/#our-team)\n
+    [Our Data](/#our-data)\n
+    """)
 
