@@ -38,11 +38,11 @@ class Trainer():
 
     def augment_trashnet(self):
         augmentation = Sequential(
-            [RandomRotation(factor=(-0.2, 0.3)),
-                RandomFlip()])
+            [RandomFlip()])
         return augmentation
 
 
+#RandomRotation(factor=(-0.1, 0.3)),
 
     def load_data(self, use_trashnet=True, use_taco=True, gcp=False):
         if use_trashnet and use_taco:
@@ -57,7 +57,7 @@ class Trainer():
         self.val_ds_local = val_ds
         self.test_ds_local = test_ds
 
-    def create_main_layer(self, model_type="DenseNet121", num_classes=6):
+    def create_main_layer(self, model_type="ResNet50", num_classes=6):
         model_type = "ResNet50"
         input_shape=(180, 180, 3)
         if model_type == "ResNet50":
@@ -93,8 +93,6 @@ class Trainer():
         model = Sequential([
             model,
             Dense(128, activation='relu'),
-            Dropout(0.2),
-            Dense(32, activation='relu'),
             Dense(num_classes, activation='softmax')
         ])
         model.compile()
@@ -102,7 +100,7 @@ class Trainer():
         return model
 
 
-    def train_model(self, model_type, epochs=3):
+    def train_model(self, model_type, epochs=20):
         tic = time.time()
         core_model = self.create_main_layer()
         model = Sequential([self.augment_trashnet(),
@@ -112,7 +110,7 @@ class Trainer():
                       loss=SparseCategoricalCrossentropy(from_logits=False),
                       metrics=['accuracy'])
         history = model.fit(self.train_ds_local, validation_data=self.val_ds_local, epochs=epochs, callbacks=[
-            EarlyStopping(monitor='val_accuracy',patience=10)])
+            EarlyStopping(monitor='val_accuracy',patience=9)])
         self.mlflow_log_metric("epochs", epochs)
         self.mlflow_log_metric("train_time", int(time.time() - tic))
         self.model = model
@@ -133,7 +131,7 @@ class Trainer():
         plt.savefig('Accuracy + Loss.jpg')
         print(f"Accuracy and Loss plot saved as Accuracy + Loss.jpg")
 
-        train_ds, val_ds, test_ds = get_data_trashnet()
+        train_ds, val_ds, test_ds = get_all_data()
         test_loss, test_acc = self.model.evaluate(test_ds)
         print('Test loss: {} Test Acc: {}'.format(test_loss, test_acc))
         self.mlflow_log_metric("Loss", test_loss)
@@ -172,20 +170,6 @@ class Trainer():
         self.mlflow_log_metric("Loss", test_loss)
         self.mlflow_log_metric("Accuracy", test_acc)
 
-    def model_predictor():
-        img_path = '../input/garbage classification/Garbage classification/plastic/plastic75.jpg'
-
-        img = image.load_img(img_path, target_size=(180, 180))
-        img = image.img_to_array(img, dtype=np.uint8)
-        img=np.array(img)/255.0
-
-        plt.title("Loaded Image")
-        plt.axis('off')
-        plt.imshow(img.squeeze())
-
-        p=model.predict(img[np.newaxis, ...])
-
-
     @memoized_property
     def mlflow_client(self):
         mlflow.set_tracking_uri(MLFLOW_URI)
@@ -215,7 +199,7 @@ if __name__ == "__main__":
     model_dir = os.path.join(package_parent, "model_standard")
     t = Trainer()
     t.load_data(gcp=False, use_taco=False)
-    t.train_model(model_type="standard", epochs=3)
+    t.train_model(model_type="ResNet50", epochs=20)
     # t.compute_confusion_matrix(os.path.join(model_dir, "..", "confusion_matrix.png"))
     t.save_model(model_dir)
     # t.load_model(model_dir)
