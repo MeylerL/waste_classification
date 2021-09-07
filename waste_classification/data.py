@@ -5,15 +5,14 @@ import matplotlib.pyplot as plt
 import numpy as np
 import os
 import PIL
-#from tensorflow.keras.preprocessing import image_dataset_from_directory
+from tensorflow.keras.preprocessing import image_dataset_from_directory
 from pathlib import Path
 import tempfile
-from waste_classification.params import BUCKET_FOLDER, TACO_BUCKET_FILE_NAME, TRASHNET_BUCKET_PREFIX, BUCKET_NAME, TRASHNET_RESIZED, LOCAL_PATH_TACO
+from waste_classification.params import BUCKET_FOLDER, TACO_BUCKET_PREFIX, TRASHNET_BUCKET_PREFIX, BUCKET_NAME, TRASHNET_RESIZED, LOCAL_PATH_TACO
 from PIL import Image, ImageFilter
 from shutil import rmtree
 from waste_classification.params import TACO_path, annotations_path, CATEGORY_CONVERSION
 import json
-import numpy as np
 import os.path
 from PIL import Image, ImageFilter
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
@@ -32,8 +31,7 @@ def get_data_trashnet(gcp=False):
                                                     validation_split=0.2,
                                                     subset="training",
                                                     seed=123,
-                                                    image_size=(
-                                                        img_height, img_width),
+                                                    image_size=(img_height, img_width),
                                                     batch_size=batch_size)
         valid_batches = len(all_train_ds)//5
         train_ds = all_train_ds.skip(valid_batches)
@@ -46,12 +44,6 @@ def get_data_trashnet(gcp=False):
                                             batch_size=batch_size)
         return train_ds, val_ds, test_ds
 
-dirs_to_remove = []
-
-def cleanup_tmp_dirs():
-    global dirs_to_remove
-    for d in dirs_to_remove:
-        rmtree(d)
 
 def delete_trained_TACO_folders():
     folder = LOCAL_PATH_TACO
@@ -62,6 +54,7 @@ def delete_trained_TACO_folders():
         elif os.path.isdir(file_path):
             rmtree(file_path)
 
+
 def create_trained_TACO_folders():
     categories =["paper", "plastic", "trash", "cardboard", "metal", "glass"]
     parent_dir = LOCAL_PATH_TACO
@@ -70,135 +63,36 @@ def create_trained_TACO_folders():
         os.makedirs(path)
         print("Directory '% s' created" % category)
 
-def download_from_cloud(bucket_name, prefix):
-    global dirs_to_remove
-    output_dir = tempfile.mkstemp()[1]
-    dirs_to_remove.append(output_dir)
-    os.remove(output_dir)
-    print(f"downloading data from Google cloud to {output_dir}")
 
-    storage_client = storage.Client()
-    bucket = storage_client.get_bucket(bucket_or_name=bucket_name)
-    blobs = list(bucket.list_blobs(prefix=prefix))  # Get list of files
-    for blob in blobs:
-        if blob.name.endswith("/"):
-            continue
-        print(f"downloading {blob.name}")
-        file_split = blob.name.split("/")
-        directory = "/".join([output_dir]+file_split[0:-1])
-        fn = os.path.join(directory, file_split[-1])
-        Path(directory).mkdir(parents=True, exist_ok=True)
-        blob.download_to_filename(fn)
-    print("downloading data from Google cloud DONE")
-    return output_dir
-
-def load_trashnet(gcp=False):
-    """loads trashnet data from files within gcp if gcp True. Otherwise loads from local dataset.
-    Returns train_ds, val_ds, test_ds as pandas dataframes."""
+def get_data_TACO(gcp=False):
+    """loads TACOS data from files within gcp if gcp True. Otherwise loads from local dataset."""
     if gcp:
-        # directory = f"gs://{BUCKET_NAME}/{BUCKET_FOLDER}/{TRASHNET_BUCKET_FILE_NAME}"
-        directory = download_from_cloud(bucket_name=BUCKET_NAME, prefix=f"{BUCKET_FOLDER}/{TRASHNET_BUCKET_FILE_NAME}")
+        directory = f"gs://{BUCKET_NAME}/{TACO_BUCKET_PREFIX}"
+        from tensorflow.data.experimental import load as load_dataset
+        return tuple(load_dataset(f"{directory}_{i}", compression="GZIP") for i in range(3))
     else:
-        #uses resized dataset on local computer
-        directory = TRASHNET_RESIZED
-    batch_size = 32
-    img_height = 180
-    img_width = 180
-    all_train_ds = image_dataset_from_directory(directory,
-                                                validation_split=0.2,
-                                                subset="training",
-                                                seed=123,
-                                                image_size=(
-                                                    img_height, img_width),
-                                                batch_size=batch_size)
-    valid_batches = len(all_train_ds)//5
-    train_ds = all_train_ds.skip(valid_batches)
-    val_ds = all_train_ds.take(valid_batches)
-    test_ds = image_dataset_from_directory(directory,
-                                          validation_split=0.2,
-                                          subset="validation",
-                                          seed=123,
-                                          image_size=(img_height, img_width),
-                                          batch_size=batch_size)
-    return train_ds, val_ds, test_ds
+        directory = LOCAL_PATH_TACO
+        batch_size = 32
+        img_height = 180
+        img_width = 180
+        all_train_ds = image_dataset_from_directory(directory,
+                                                    validation_split=0.2,
+                                                    subset="training",
+                                                    seed=123,
+                                                    image_size=(
+                                                        img_height, img_width),
+                                                    batch_size=batch_size)
+        valid_batches = len(all_train_ds)//5
+        train_ds = all_train_ds.skip(valid_batches)
+        val_ds = all_train_ds.take(valid_batches)
+        test_ds = image_dataset_from_directory(directory,
+                                              validation_split=0.2,
+                                              subset="validation",
+                                              seed=123,
+                                              image_size=(img_height, img_width),
+                                              batch_size=batch_size)
+        return train_ds, val_ds, test_ds
 
-
-def load_trashnet_datagen(gcp=False):
-    """loads trashnet data from files within gcp if gcp True. Otherwise loads from local dataset.
-    Returns train_ds, val_ds, test_ds as pandas dataframes."""
-    if gcp:
-        # directory = f"gs://{BUCKET_NAME}/{BUCKET_FOLDER}/{TRASHNET_BUCKET_FILE_NAME}"
-        directory = download_from_cloud(bucket_name=BUCKET_NAME, prefix=f"{BUCKET_FOLDER}/{TRASHNET_BUCKET_FILE_NAME}")
-    else:
-        #uses resized dataset on local computer
-        directory = TRASHNET_RESIZED
-    batch_size = 32
-    img_height = 180
-    img_width = 180
-    train_datagen = ImageDataGenerator(rescale=1./255, rotation_range=5,
-                                       horizontal_flip=True,
-                                       zoom_range=0.4,
-                                       shear_range=45.0,
-                                       validation_split=0.2,
-                                       dtype='float32')
-
-    valid_datagen = ImageDataGenerator(rescale=1/ 255.0,
-                                       validation_split=0.2,
-                                       dtype='float32')
-
-    test_datagen  = ImageDataGenerator(rescale = 1.0/ 255.0)
-
-    train_ds = train_datagen.flow_from_directory(directory=directory,
-                                                 target_size=(img_height,
-                                                              img_width),
-                                                 class_mode='categorical',
-                                                 batch_size=batch_size,
-                                                 subset='training')
-    valid_ds = valid_datagen.flow_from_directory(directory=directory,
-                                                 target_size=(img_height,
-                                                              img_width),
-                                                 class_mode='categorical',
-                                                 batch_size=batch_size,
-                                                 subset='validation')
-
-    test_ds = test_datagen.flow_from_directory(directory=directory,
-                                               target_size=(img_height,
-                                                            img_width),
-                                               class_mode='categorical',
-                                               batch_size=batch_size,
-                                               shuffle=False)
-    return train_ds, valid_ds, test_ds
-
-
-
-def load_TACO(gcp=False):
-    """loads TACOS data from files within gcp if gcp True. Otherwise loads from local dataset.
-    Returns train_ds, val_ds, test_ds as pandas dataframes."""
-    if gcp:
-        # directory = f"gs://{BUCKET_NAME}/{BUCKET_FOLDER}/{TACO_BUCKET_FILE_NAME}"
-        directory = download_from_cloud(bucket_name=BUCKET_NAME, prefix=f"{BUCKET_FOLDER}/{TACO_BUCKET_FILE_NAME}")
-    else:
-      directory = LOCAL_PATH_TACO
-    batch_size = 32
-    img_height = 180
-    img_width = 180
-    all_train_ds = image_dataset_from_directory(directory,
-                                                validation_split=0.2,
-                                                subset="training",
-                                                seed=123,
-                                                image_size=(
-                                                    img_height, img_width),
-                                                batch_size=batch_size)
-    valid_batches = len(all_train_ds)//5
-    train_ds = all_train_ds.skip(valid_batches)
-    val_ds = all_train_ds.take(valid_batches)
-    test_ds = image_dataset_from_directory(directory,
-                                          validation_split=0.2,
-                                          subset="validation",
-                                          seed=123,
-                                          image_size=(img_height, img_width),
-                                          batch_size=batch_size)
-    return train_ds, val_ds, test_ds
 
 def save_cropped_TACO():
   with open(annotations_path, 'r') as f:
@@ -246,6 +140,8 @@ def save_cropped_TACO():
     df.reset_index(inplace=True, drop=True)
     # Save cropped images in a new directory
     for ind in df.index:
+        if ind % 100 == 0:
+            print(f"processed {ind}")
         bbox = (df['x_min'][ind], df['y_min'][ind],
                 df['x_max'][ind], df['y_max'][ind])
         imagePath = os.path.join(inPath, df['filename'][ind])
@@ -255,14 +151,18 @@ def save_cropped_TACO():
             '/')[0]+df["filename"][ind].split('/')[1]
         imageName = imageName[:-4]
         folder_name = df["category"][ind]
+        Path(os.path.join(outPath, folder_name)).mkdir(parents=True, exist_ok=True)
         croppedImagePath = os.path.join(
             outPath, folder_name,  imageName+'cropped.jpg')
         img.save(croppedImagePath)
 
-def get_data_TACO():
-    '''returns a TACO train_ds, val_ds, test_ds from GCP'''
-    train_ds, val_ds, test_ds = load_TACO(gcp=False)
-    return train_ds, val_ds, test_ds
+
+
+def get_all_data(gcp=False):
+    taco_train, taco_val, taco_test = get_data_TACO(gcp)
+    trash_train, trash_val, trash_test = get_data_trashnet(gcp)
+    return taco_train.concatenate(taco_val).concatenate(taco_test).concatenate(trash_train), trash_val, trash_test
+
 
 if __name__ == '__main__':
     delete_trained_TACO_folders()
