@@ -28,13 +28,14 @@ from tensorflow.keras.callbacks import EarlyStopping
 
 
 class Trainer():
-    def __init__(self):
+    def __init__(self, model_type):
         self.experiment_name = "waste_classification_first_model"
         self.train_ds_local = None
         self.val_ds_local = None
         self.test_ds_local = None
         self.model = None
         self.mlflow = True
+        self.model_type = model_type
 
     def augment_trashnet(self):
         augmentation = Sequential(
@@ -57,20 +58,19 @@ class Trainer():
         self.val_ds_local = val_ds
         self.test_ds_local = test_ds
 
-    def create_main_layer(self, model_type="DenseNet121", num_classes=6):
-        model_type = "ResNet50"
+    def create_main_layer(self, num_classes=6):
         input_shape=(180, 180, 3)
-        if model_type == "ResNet50":
+        if self.model_type == "ResNet50":
             base_model = ResNet50(input_shape=input_shape, include_top=False, weights="imagenet")
             for layer in base_model.layers:
                 layer.trainable = False
-        elif model_type == "VGG16":
+        elif self.model_type == "VGG16":
             base_model = VGG16(input_shape=input_shape,
                                include_top=False,
                                weights="imagenet")
             for layer in base_model.layers:
                 layer.trainable = False
-        elif model_type == "DenseNet121":
+        elif self.model_type == "DenseNet121":
             base_model = DenseNet121(include_top=False,
                                      weights="imagenet",
                                      input_shape=input_shape)
@@ -87,7 +87,7 @@ class Trainer():
                             Conv2D(32, 3, activation='relu'),
                             MaxPooling2D()])
         else:
-            raise Exception(f"model {model_type} not supported")
+            raise Exception(f"model {self.model_type} not supported")
         x = tf.keras.layers.Flatten()(base_model.output)
         model = tf.keras.models.Model(base_model.input, x)
         model = Sequential([
@@ -98,11 +98,11 @@ class Trainer():
             Dense(num_classes, activation='softmax')
         ])
         model.compile()
-        self.mlflow_log_param(model_type, "i am a parameter")
+        self.mlflow_log_param(self.model_type, "i am a parameter")
         return model
 
 
-    def train_model(self, model_type, epochs=1):
+    def train_model(self, epochs=1):
         tic = time.time()
         core_model = self.create_main_layer()
         model = Sequential([self.augment_trashnet(),
@@ -128,7 +128,7 @@ class Trainer():
         self.model = tf.keras.models.load_model(model_dir)
 
     def save_model(self, model_dir):
-        self.model.save(model_dir)
+        self.model.save(os.path.join(model_dir, "keras_model"))
 
     def compute_confusion_matrix(self, model_dir, data_dir):
         train_ds, val_ds, test_ds = get_data_trashnet()
@@ -143,8 +143,8 @@ class Trainer():
                 confusion_matrix += c
         labels = ['paper', 'plastic', 'metal', 'trash', 'glass', 'cardboard']
         sns.heatmap(confusion_matrix.numpy(), annot=True, xticklabels=labels, yticklabels=labels)
-        plt.savefig(plot_location)
-        print(f"confusion matrix plot saved at {plot_location}")
+        plt.savefig(model_dir)
+        print(f"confusion matrix plot saved at {model_dir}")
 
 
     def loss_function(self):
@@ -159,13 +159,12 @@ class Trainer():
 
 
     def evaluate_score(self):
-        self.model = model
+        model = self.model
         train_ds, val_ds, test_ds = get_data_trashnet()
         test_loss, test_acc = self.model.evaluate(test_ds)
         print('Test loss: {} Test Acc: {}'.format(test_loss, test_acc))
         self.mlflow_log_metric("Loss", test_loss)
         self.mlflow_log_metric("Accuracy", test_acc)
-
 
 
     @memoized_property
@@ -194,10 +193,10 @@ class Trainer():
 
 
 if __name__ == "__main__":
-    model_dir = os.path.join(package_parent, "model_standard")
-    t = Trainer()
+    model_dir = os.path.join(package_parent, "pretrained_models")
+    print(model_dir)
+    t = Trainer("ResNet50")
     t.load_data(gcp=False, use_taco=False)
-    t.train_model(model_type="standard", epochs=1)
-    t.compute_confusion_matrix(os.path.join(model_dir, "..", "confusion_matrix.png"))
+    t.train_model(epochs=1)
+    # t.compute_confusion_matrix()
     t.save_model(model_dir)
-    # t.load_model(model_dir)
