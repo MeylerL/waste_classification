@@ -34,3 +34,4 @@ memoized-property
 termcolor
 matplotlib
 tensorflow>=2.6.0
+seaborn
