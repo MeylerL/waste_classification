@@ -25,7 +25,7 @@ from tensorflow.keras.optimizers import Adam
 from keras.preprocessing import image
 from tensorflow.keras.callbacks import EarlyStopping
 
-
+#hi
 
 class Trainer():
     def __init__(self):
