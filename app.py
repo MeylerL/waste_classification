@@ -6,6 +6,7 @@ import joblib
 import os
 import tensorflow as tf
 from waste_classification.params import package_parent
+import time
 
 st.set_page_config(
     page_title="Waste Classifier",
@@ -45,31 +46,41 @@ st.set_option('deprecation.showfileUploaderEncoding', False)
 
 uploaded_file = st.file_uploader("Choose a image of waste for classification:", type="JPG")
 if uploaded_file is not None:
+    beep = "Beep"
+    boop = "Boop"
     X_test = Image.open(uploaded_file)
     new_size = (180, 180)
     X_test= X_test.resize(new_size)
-    st.write("Resizing image... new size is:")
-    st.write(X_test.size)
+    columns = st.columns(2)
+    time.sleep(1)
+    columns[0].write("Resizing image... new size is:")
+    columns[0].write(X_test.size)
     npframe = np.array(X_test.getdata())
     imgrgb_df = pd.DataFrame(npframe)
-    st.image(X_test)
+    columns[0].image(X_test)
     imgrgb_df = imgrgb_df.to_numpy().reshape((1, 180, 180, 3))
-    st.write("Reshaping image... new shape is:")
-    st.write(imgrgb_df.shape)
-    'Activating neural networks...'
+    time.sleep(1)
+    columns[1].write("Reshaping image... new shape is:")
+    columns[1].write(imgrgb_df.shape)
+    time.sleep(1)
+    columns[1].write('Activating neural networks...')
+    time.sleep(1)
+    columns[1].write(beep)
+    time.sleep(1)
+    columns[1].write(beep)
+    time.sleep(1)
+    columns[1].write(boop)
     model = tf.keras.models.load_model("/Users/Lucy/code/MeylerL/waste_classification/pretrained_models")
     result = model.predict(imgrgb_df)
     prediction = np.argmax(result, axis=1)
     ls = ["cardboard", "glass", "metal", "paper", "plastic", "trash"]
-    st.write(f'Your waste is {ls[prediction[0]]}!')
-    #st.success('Image classified!')
+    st.markdown(f'# Your waste is {ls[prediction[0]]}!')
 
-st.text("")
 st.text("")
 
 st.write('<a name=" Our Data"></a>', unsafe_allow_html=True)
 st.markdown("# Our Data")
-"""Many thanks to Pedro Proença and Pedro Simões of tacodataset.org as well as Gary Thung of trashnet for thier invaluable open source data."""
+"""Many thanks to Pedro Proença and Pedro Simões of tacodataset.org as well as Gary Thung of trashnet for their invaluable open source data."""
 
 st.write('<a name=" Our Team"></a>', unsafe_allow_html=True)
 st.markdown("# Our Team")
