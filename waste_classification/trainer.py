@@ -26,6 +26,7 @@ from keras.preprocessing import image
 from tensorflow.keras.callbacks import EarlyStopping
 
 
+#hi, julio was here!
 
 class Trainer():
     def __init__(self):
@@ -102,7 +103,8 @@ class Trainer():
         return model
 
 
-    def train_model(self, model_type, epochs=1):
+
+    def train_model(self, model_type, epochs=3):
         tic = time.time()
         core_model = self.create_main_layer()
         model = Sequential([self.augment_trashnet(),
@@ -116,12 +118,27 @@ class Trainer():
         self.mlflow_log_metric("epochs", epochs)
         self.mlflow_log_metric("train_time", int(time.time() - tic))
         self.model = model
+        plt.figure(figsize=(8, 8))
+        plt.subplot(2, 1, 1)
         plt.plot(history.history['accuracy'])
         plt.plot(history.history['val_accuracy'])
         plt.legend(['Training', 'Validation'])
+        plt.title('Accuracy')
         plt.xlabel('epoch')
-        plt.savefig('Accuracy.jpg')
-        print(f"accuracy plot saved at Accuracy.jpg")
+        plt.subplot(2, 1, 2)
+        plt.plot(history.history['loss'])
+        plt.plot(history.history['val_loss'])
+        plt.legend(['Training', 'Validation'])
+        plt.title('Losses')
+        plt.xlabel('epoch')
+        plt.savefig('Accuracy + Loss.jpg')
+        print(f"Accuracy and Loss plot saved as Accuracy + Loss.jpg")
+
+        train_ds, val_ds, test_ds = get_data_trashnet()
+        test_loss, test_acc = self.model.evaluate(test_ds)
+        print('Test loss: {} Test Acc: {}'.format(test_loss, test_acc))
+        self.mlflow_log_metric("Loss", test_loss)
+        self.mlflow_log_metric("Accuracy", test_acc)
         return model
 
     def load_model(self, model_dir):
@@ -130,32 +147,23 @@ class Trainer():
     def save_model(self, model_dir):
         self.model.save(model_dir)
 
-    def compute_confusion_matrix(self, model_dir, data_dir):
-        train_ds, val_ds, test_ds = get_data_trashnet()
-        model = self.model
-        confusion_matrix = None
-        for batch_input, batch_output in self.val_ds_local:
-            p = tf.argmax(self.model(batch_input), -1)
-            c = tf.math.confusion_matrix(batch_output, p, num_classes=6)
-            if confusion_matrix is None:
-                confusion_matrix = c
-            else:
-                confusion_matrix += c
-        labels = ['paper', 'plastic', 'metal', 'trash', 'glass', 'cardboard']
-        sns.heatmap(confusion_matrix.numpy(), annot=True, xticklabels=labels, yticklabels=labels)
-        plt.savefig(plot_location)
-        print(f"confusion matrix plot saved at {plot_location}")
 
+    # def compute_confusion_matrix(self, model_dir, data_dir):
+    #     train_ds, val_ds, test_ds = get_data_trashnet()
+    #     model = self.model
+    #     confusion_matrix = None
+    #     for batch_input, batch_output in self.val_ds_local:
+    #         p = tf.argmax(self.model(batch_input), -1)
+    #         c = tf.math.confusion_matrix(batch_output, p, num_classes=6)
+    #         if confusion_matrix is None:
+    #             confusion_matrix = c
+    #         else:
+    #             confusion_matrix += c
+    #     labels = ['paper', 'plastic', 'metal', 'trash', 'glass', 'cardboard']
+    #     sns.heatmap(confusion_matrix.numpy(), annot=True, xticklabels=labels, yticklabels=labels)
+    #     plt.savefig(plot_location)
+    #     print(f"confusion matrix plot saved at {plot_location}")
 
-    def loss_function(self):
-        self.model = model
-        plt.plot(history.history['loss'])
-        plt.plot(history.history['val_loss'])
-        plt.legend(['Training', 'Validation'])
-        plt.title('Training and Validation Losses')
-        plt.xlabel('epoch')
-        plt.savefig('Accuracy.jpg')
-        print(f"accuracy plot saved at Accuracy.jpg")
 
 
     def evaluate_score(self):
@@ -165,6 +173,20 @@ class Trainer():
         print('Test loss: {} Test Acc: {}'.format(test_loss, test_acc))
         self.mlflow_log_metric("Loss", test_loss)
         self.mlflow_log_metric("Accuracy", test_acc)
+
+
+    def model_predictor():
+        img_path = '../input/garbage classification/Garbage classification/plastic/plastic75.jpg'
+
+        img = image.load_img(img_path, target_size=(180, 180))
+        img = image.img_to_array(img, dtype=np.uint8)
+        img=np.array(img)/255.0
+
+        plt.title("Loaded Image")
+        plt.axis('off')
+        plt.imshow(img.squeeze())
+
+        p=model.predict(img[np.newaxis, ...])
 
 
 
@@ -197,7 +219,7 @@ if __name__ == "__main__":
     model_dir = os.path.join(package_parent, "model_standard")
     t = Trainer()
     t.load_data(gcp=False, use_taco=False)
-    t.train_model(model_type="standard", epochs=1)
-    t.compute_confusion_matrix(os.path.join(model_dir, "..", "confusion_matrix.png"))
+    t.train_model(model_type="standard", epochs=3)
+    # t.compute_confusion_matrix(os.path.join(model_dir, "..", "confusion_matrix.png"))
     t.save_model(model_dir)
     # t.load_model(model_dir)
