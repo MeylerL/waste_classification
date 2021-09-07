@@ -13,7 +13,6 @@ from PIL import Image, ImageFilter
 from shutil import rmtree
 from waste_classification.params import TACO_path, annotations_path, CATEGORY_CONVERSION
 import json
-import numpy as np
 import os.path
 from PIL import Image, ImageFilter
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
@@ -32,8 +31,7 @@ def get_data_trashnet(gcp=False):
                                                     validation_split=0.2,
                                                     subset="training",
                                                     seed=123,
-                                                    image_size=(
-                                                        img_height, img_width),
+                                                    image_size=(img_height, img_width),
                                                     batch_size=batch_size)
         valid_batches = len(all_train_ds)//5
         train_ds = all_train_ds.skip(valid_batches)
@@ -157,6 +155,7 @@ def save_cropped_TACO():
         croppedImagePath = os.path.join(
             outPath, folder_name,  imageName+'cropped.jpg')
         img.save(croppedImagePath)
+
 
 
 def get_all_data(gcp=False):

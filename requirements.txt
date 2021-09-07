@@ -9,23 +9,10 @@ numpy
 pandas
 scikit-learn
 
-# deeplearning
-tensorflow
-
-# tests/linter
-black
-coverage
-flake8
-pytest
-yapf
-
 # API
 gcsfs
 google-cloud-storage
 mlflow
-s3fs
-uvicorn
-fastapi
 
 # utilities
 six>=1.14
@@ -34,6 +21,8 @@ memoized-property
 termcolor
 matplotlib
 tensorflow>=2.6.0
+seaborn
 
 #deployment
 streamlit
+

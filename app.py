@@ -9,10 +9,11 @@ st.set_page_config(
     layout="centered",  # wide
     initial_sidebar_state="auto")  # collapsed
 
-st.markdown("""# ♻️ Waste Classifier ♻️
+st.write('<a name=" ♻️ Waste Classifier ♻️"></a>', unsafe_allow_html=True)
+st.markdown("# ♻️ Waste Classifier ♻️")
 
-#### “There is no such thing as ‘away’. When we throw anything away it must go somewhere.”
-– Annie Leonard""")
+"""#### “There is no such thing as ‘away’. When we throw anything away it must go somewhere.”
+– Annie Leonard"""
 
 st.text("")
 st.text("")
@@ -39,18 +40,7 @@ st.text("")
 st.set_option('deprecation.showfileUploaderEncoding', False)
 
 uploaded_file = st.file_uploader("Choose a image of waste for classification:", type="JPG")
-
 if uploaded_file is not None:
-    import time
-
-
-    # latest_iteration = st.empty()
-    # bar = st.progress(0)
-    # for i in range(100):
-    #     latest_iteration.text(f'Iteration {i+1}')
-    #     bar.progress(i + 1)
-    #     time.sleep(0.1)
-
     X_test = Image.open(uploaded_file)
     new_size = (180, 180)
     X_test= X_test.resize(new_size)
@@ -63,15 +53,19 @@ if uploaded_file is not None:
     st.write("Reshaping image... new shape is:")
     st.write(imgrgb_df.shape)
     'Activating neural networks...'
-
+    model = load_model()
+    prediction = model.predict(imgrgb_df)
+    st.write(f'Your waste is a {prediction}!')
     #st.success('Image classified!')
 
 st.text("")
 st.text("")
 
+st.write('<a name=" Our Data"></a>', unsafe_allow_html=True)
 st.markdown("# Our Data")
 """Many thanks to Pedro Proença and Pedro Simões of tacodataset.org as well as Gary Thung of trashnet for thier invaluable open source data."""
 
+st.write('<a name=" Our Team"></a>', unsafe_allow_html=True)
 st.markdown("# Our Team")
 columns = st.columns(4)
 xin_image = Image.open("images/xin.jpeg")
@@ -83,21 +77,10 @@ jack = columns[2].image(jack_image, caption='Jack Riddleston', use_column_width=
 izzy_image = Image.open("images/izzy.JPG")
 izzy = columns[3].image(izzy_image, caption='Izzy Weber', use_column_width=True)
 
-st.sidebar.write(f"""
-    # Navigation
-    [The Classifier](//#waste-classifier)\n
-    [Our Team](/#our-team)\n
-    [Our Data](/#our-data)\n
-    """)
-
-
-toc = '''<h1>Waste Classification</h1>
-            <a href="#Intro">Intro</a><br>
-            <a href="#Magic commands">Magic commands</a><br>
-            <a href="#Inline documentation">Inline documentation</a><br>
-            <a href="#About">About</a><br>
+left_nav_toc = '''<h1>Navigation</h1>
+            <a href="# ♻️ Waste Classifier ♻️">The Classifier</a><br>
+                        <a href="# Our Data">Our Data</a><br>
+            <a href="# Our Team">Our Team</a><br>
         '''
 
-st.sidebar.markdown(toc, unsafe_allow_html=True)
-st.markdown('# About')
-st.write('<a name="About"></a>', unsafe_allow_html=True)
+st.sidebar.markdown(left_nav_toc, unsafe_allow_html=True)
