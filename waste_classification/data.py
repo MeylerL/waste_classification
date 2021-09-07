@@ -13,7 +13,6 @@ from PIL import Image, ImageFilter
 from shutil import rmtree
 from waste_classification.params import TACO_path, annotations_path, CATEGORY_CONVERSION
 import json
-import numpy as np
 import os.path
 from PIL import Image, ImageFilter
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
