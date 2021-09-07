@@ -11,7 +11,6 @@ setup(name='waste_classification',
       packages=find_packages(),
       install_requires=requirements,
       test_suite='tests',
-      # include_package_data: to install data from MANIFEST.in
       include_package_data=True,
       scripts=['scripts/waste_classification-run'],
       zip_safe=False)
