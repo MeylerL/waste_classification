@@ -2,6 +2,10 @@ from PIL import Image
 import streamlit as st
 import numpy as np
 import pandas as pd
+import joblib
+import os
+import tensorflow as tf
+from waste_classification.params import package_parent
 
 st.set_page_config(
     page_title="Waste Classifier",
@@ -12,7 +16,7 @@ st.set_page_config(
 st.write('<a name=" ♻️ Waste Classifier ♻️"></a>', unsafe_allow_html=True)
 st.markdown("# ♻️ Waste Classifier ♻️")
 
-"""#### “There is no such thing as ‘away’. When we throw anything away it must go somewhere.”
+"""#### "There is no such thing as 'away'. When we throw anything away it must go somewhere."
 – Annie Leonard"""
 
 st.text("")
@@ -49,13 +53,15 @@ if uploaded_file is not None:
     npframe = np.array(X_test.getdata())
     imgrgb_df = pd.DataFrame(npframe)
     st.image(X_test)
-    imgrgb_df = imgrgb_df.to_numpy().reshape((180, 180, 3))
+    imgrgb_df = imgrgb_df.to_numpy().reshape((1, 180, 180, 3))
     st.write("Reshaping image... new shape is:")
     st.write(imgrgb_df.shape)
     'Activating neural networks...'
-    model = load_model()
-    prediction = model.predict(imgrgb_df)
-    st.write(f'Your waste is a {prediction}!')
+    model = tf.keras.models.load_model("/Users/Lucy/code/MeylerL/waste_classification/pretrained_models")
+    result = model.predict(imgrgb_df)
+    prediction = np.argmax(result, axis=1)
+    ls = ["cardboard", "glass", "metal", "paper", "plastic", "trash"]
+    st.write(f'Your waste is {ls[prediction[0]]}!')
     #st.success('Image classified!')
 
 st.text("")

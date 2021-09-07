@@ -8,3 +8,4 @@ raw_data/
 .env
 .python-version
 /waste_calssification/mlruns/
+pretrained_models/
