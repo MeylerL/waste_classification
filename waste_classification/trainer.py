@@ -55,7 +55,7 @@ class Trainer():
         # model.save(save_to)
 
 
-    def create_main_layer(self, model_type="ResNet50", num_classes=6):
+    def create_main_layer(self, model_type="DenseNet121", num_classes=6):
         model_type = "ResNet50"
         input_shape=(180, 180, 3)
         if model_type == "ResNet50":
@@ -93,6 +93,7 @@ class Trainer():
             model,
             Dense(128, activation='relu'),
             Dropout(0.2),
+            Dense(32, activation='relu'),
             Dense(num_classes, activation='softmax')
         ])
         model.compile()
@@ -100,7 +101,7 @@ class Trainer():
         return model
 
 
-    def train_model(self, model_type, epochs=1):
+    def train_model(self, model_type, epochs=20):
         # AUTOTUNE = tf.data.experimental.AUTOTUNE
         # train_ds = self.train_ds_local.cache().prefetch(buffer_size=AUTOTUNE)
         # val_ds = self.val_ds_local.cache().prefetch(buffer_size=AUTOTUNE)
@@ -150,6 +151,16 @@ class Trainer():
         print(f"confusion matrix plot saved at {model_dir}")
 
 
+    def loss_function(self):
+        self.model = model
+        plt.plot(history.history['loss'])
+        plt.plot(history.history['val_loss'])
+        plt.legend(['Training', 'Validation'])
+        plt.title('Training and Validation Losses')
+        plt.xlabel('epoch')
+        plt.savefig('Accuracy.jpg')
+        print(f"accuracy plot saved at Accuracy.jpg")
+
 
     def evaluate_score(self):
         self.model = model
@@ -191,9 +202,9 @@ if __name__ == "__main__":
     model_dir = os.path.join(package_parent, "model_standard")
     t = Trainer()
     t.preproc_pipeline_trashnet(data_dir=data_dir,
-                                model_type="ResNet50",
+                                model_type="DenseNet121",
                                 save_to=model_dir,
-                                epochs=1)
-    model = t.train_model(model_type="ResNet50")
+                                epochs=20)
+    model = t.train_model(model_type="DenseNet121")
     confusion = t.compute_confusion_matrix(model_dir, data_dir)
     evaluate =  t.evaluate_score()
