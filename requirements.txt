@@ -20,6 +20,7 @@ joblib
 memoized-property
 termcolor
 matplotlib
+seaborn
 tensorflow>=2.6.0
 
 #deployment

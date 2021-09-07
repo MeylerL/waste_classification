@@ -69,7 +69,7 @@ RUNTIME_VERSION=1.15
 
 PACKAGE_NAME=waste_classification
 # FILENAME=gcp_trainer
-FILENAME=data
+FILENAME=trainer
 
 JOB_NAME=waste_management_training_pipeline_$(shell date +'%Y%m%d_%H%M%S')
 
@@ -93,7 +93,7 @@ upload_trashnet_data:
 upload_TACO_data:
 	@gsutil cp -r ${LOCAL_PATH_TACO} gs://${BUCKET_NAME}/${BUCKET_FOLDER}/${TACO_BUCKET_FILE_NAME}
 
-test_cloud:
+train_cloud:
 	gcloud ai-platform jobs submit training ${JOB_NAME} \
 		--job-dir gs://${BUCKET_NAME}/${BUCKET_TRAINING_FOLDER}  \
 		--package-path ${PACKAGE_NAME} \
@@ -102,7 +102,9 @@ test_cloud:
 	      	--runtime-version=${RUNTIME_VERSION} \
 		--region ${REGION} \
 		--project le-wagon-bootcamp-319614 \
-	 	--stream-logs
+	 	--stream-logs \
+		-- \
+		--use-gcp True --use-taco True --class-balance True --model-type standard --epochs 4
 
 run_streamlit:
 	streamlit run app.py
