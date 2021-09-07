@@ -40,18 +40,7 @@ st.text("")
 st.set_option('deprecation.showfileUploaderEncoding', False)
 
 uploaded_file = st.file_uploader("Choose a image of waste for classification:", type="JPG")
-
 if uploaded_file is not None:
-    import time
-
-
-    # latest_iteration = st.empty()
-    # bar = st.progress(0)
-    # for i in range(100):
-    #     latest_iteration.text(f'Iteration {i+1}')
-    #     bar.progress(i + 1)
-    #     time.sleep(0.1)
-
     X_test = Image.open(uploaded_file)
     new_size = (180, 180)
     X_test= X_test.resize(new_size)
