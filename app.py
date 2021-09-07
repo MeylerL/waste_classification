@@ -63,7 +63,9 @@ if uploaded_file is not None:
     st.write("Reshaping image... new shape is:")
     st.write(imgrgb_df.shape)
     'Activating neural networks...'
-
+    model = load_model()
+    prediction = model.predict(imgrgb_df)
+    st.write(f'Your waste is a {prediction}!')
     #st.success('Image classified!')
 
 st.text("")
