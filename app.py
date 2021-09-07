@@ -2,6 +2,10 @@ from PIL import Image
 import streamlit as st
 import numpy as np
 import pandas as pd
+import joblib
+import os
+import tensorflow as tf
+from waste_classification.params import package_parent
 import time
 
 st.set_page_config(
@@ -13,7 +17,7 @@ st.set_page_config(
 st.write('<a name=" ♻️ Waste Classifier ♻️"></a>', unsafe_allow_html=True)
 st.markdown("# ♻️ Waste Classifier ♻️")
 
-"""#### “There is no such thing as ‘away’. When we throw anything away it must go somewhere.”
+"""#### "There is no such thing as 'away'. When we throw anything away it must go somewhere."
 – Annie Leonard"""
 
 st.text("")
@@ -54,7 +58,7 @@ if uploaded_file is not None:
     npframe = np.array(X_test.getdata())
     imgrgb_df = pd.DataFrame(npframe)
     columns[0].image(X_test)
-    imgrgb_df = imgrgb_df.to_numpy().reshape((180, 180, 3))
+    imgrgb_df = imgrgb_df.to_numpy().reshape((1, 180, 180, 3))
     time.sleep(1)
     columns[1].write("Reshaping image... new shape is:")
     columns[1].write(imgrgb_df.shape)
@@ -66,9 +70,11 @@ if uploaded_file is not None:
     columns[1].write(beep)
     time.sleep(1)
     columns[1].write(boop)
-    #model = load_model()
-    #prediction = model.predict(imgrgb_df)
-    st.markdown(f'# Your waste is a !')
+    model = tf.keras.models.load_model("/Users/Lucy/code/MeylerL/waste_classification/pretrained_models")
+    result = model.predict(imgrgb_df)
+    prediction = np.argmax(result, axis=1)
+    ls = ["cardboard", "glass", "metal", "paper", "plastic", "trash"]
+    st.markdown(f'# Your waste is {ls[prediction[0]]}!')
 
 st.text("")
 
