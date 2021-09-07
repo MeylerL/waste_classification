@@ -71,7 +71,6 @@ class Trainer():
                                      input_shape=input_shape)
             for layer in base_model.layers:
                 layer.trainable = False
-
         elif model_type == "standard":
             normalization_layer = Rescaling(1./255, input_shape=input_shape)
             base_model = Sequential([
@@ -96,9 +95,6 @@ class Trainer():
         return model
 
     def train_model(self, model_type, epochs=1):
-        # AUTOTUNE = tf.data.experimental.AUTOTUNE
-        # train_ds = self.train_ds_local.cache().prefetch(buffer_size=AUTOTUNE)
-        # val_ds = self.val_ds_local.cache().prefetch(buffer_size=AUTOTUNE)
         tic = time.time()
         core_model = self.create_main_layer()
         model = Sequential([
@@ -108,10 +104,8 @@ class Trainer():
         model.compile(optimizer='adam',
                         loss=SparseCategoricalCrossentropy(from_logits=False),
                         metrics=['accuracy'])
-        # model.fit(train_ds, validation_data=val_ds, epochs=epochs)
         model.fit(self.train_ds_local, validation_data=self.val_ds_local, epochs=epochs)
         self.mlflow_log_metric("epochs", epochs)
-        # mlflow logs
         self.mlflow_log_metric("train_time", int(time.time() - tic))
         self.model = model
 
@@ -120,10 +114,6 @@ class Trainer():
 
     def save_model(self, model_dir):
         self.model.save(model_dir)
-
-    # def
-    # """ method that saves the model into a .joblib file and uploads it on Google Storage /models folder """
-    # pass
 
     def compute_confusion_matrix(self, plot_location):
         confusion_matrix = None
