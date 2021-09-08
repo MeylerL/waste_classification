@@ -17,7 +17,7 @@ from tensorflow.keras.preprocessing import image_dataset_from_directory
 from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, Dropout
 from tensorflow.keras.losses import SparseCategoricalCrossentropy
 from google.cloud import storage
-from waste_classification.params import  MLFLOW_URI, LOCAL_PATH_TRASHNET, package_parent
+from waste_classification.params import MLFLOW_URI, LOCAL_PATH_TRASHNET, package_parent
 from mlflow.tracking import MlflowClient
 from tensorflow.keras.applications import DenseNet121, VGG16, ResNet50
 from tensorflow.keras.optimizers import Adam
@@ -28,20 +28,20 @@ import argparse
 from sys import argv, stderr
 import sys
 
-
 class Trainer():
-    def __init__(self):
+    def __init__(self, model_type):
         self.experiment_name = "waste_classification_first_model"
         self.train_ds_local = None
         self.val_ds_local = None
         self.test_ds_local = None
         self.model = None
         self.mlflow = True
+        self.model_type = model_type
 
     def augment_trashnet(self):
         augmentation = Sequential(
             [RandomRotation(factor=(-0.2, 0.3)),
-                RandomFlip()])
+             RandomFlip()])
         return augmentation
 
     def load_data(self, use_taco=True, class_balance=True, gcp=False):
@@ -57,32 +57,34 @@ class Trainer():
         input_shape = (180, 180, 3)
         if model_type == "ResNet50":
             base_model = ResNet50(input_shape=input_shape, include_top=False, weights="imagenet")
+
             for layer in base_model.layers:
                 layer.trainable = False
-        elif model_type == "VGG16":
+        elif self.model_type == "VGG16":
             base_model = VGG16(input_shape=input_shape,
                                include_top=False,
                                weights="imagenet")
             for layer in base_model.layers:
                 layer.trainable = False
-        elif model_type == "DenseNet121":
+        elif self.model_type == "DenseNet121":
             base_model = DenseNet121(include_top=False,
                                      weights="imagenet",
                                      input_shape=input_shape)
             for layer in base_model.layers:
                 layer.trainable = False
         elif model_type == "standard":
-            normalization_layer = Rescaling(1./255, input_shape=input_shape)
+            normalization_layer = Rescaling(1. / 255, input_shape=input_shape)
             base_model = Sequential([
-                            normalization_layer,
-                            Conv2D(32, 3, activation='relu'),
-                            MaxPooling2D(),
-                            Conv2D(32, 3, activation='relu'),
-                            MaxPooling2D(),
-                            Conv2D(32, 3, activation='relu'),
-                            MaxPooling2D()])
+                normalization_layer,
+                Conv2D(32, 3, activation='relu'),
+                MaxPooling2D(),
+                Conv2D(32, 3, activation='relu'),
+                MaxPooling2D(),
+                Conv2D(32, 3, activation='relu'),
+                MaxPooling2D()
+            ])
         else:
-            raise Exception(f"model {model_type} not supported")
+            raise Exception(f"model {self.model_type} not supported")
         x = tf.keras.layers.Flatten()(base_model.output)
         model = tf.keras.models.Model(base_model.input, x)
         model = Sequential([
@@ -93,7 +95,7 @@ class Trainer():
             Dense(num_classes, activation='softmax')
         ])
         model.compile()
-        self.mlflow_log_param(model_type, "i am a parameter")
+        self.mlflow_log_param(self.model_type, "i am a parameter")
         return model
 
     def train_model(self, model_type, epochs=1):
@@ -152,7 +154,6 @@ class Trainer():
         fn = "confusion_matrix.png"
         plt.savefig(fn)
         self.upload(fn, plot_location)
-        # plt.savefig(plot_location)
         plt.clf()
         print(f"confusion matrix plot saved at {plot_location}")
 
@@ -166,6 +167,7 @@ class Trainer():
         print(f"accuracy plot saved at Accuracy.jpg")
 
     def evaluate_score(self):
+        model = self.model
         train_ds, val_ds, test_ds = get_data_trashnet()
         test_loss, test_acc = self.model.evaluate(test_ds)
         print('Test loss: {} Test Acc: {}'.format(test_loss, test_acc))
@@ -182,7 +184,8 @@ class Trainer():
         try:
             return self.mlflow_client.create_experiment(self.experiment_name)
         except BaseException:
-            return self.mlflow_client.get_experiment_by_name(self.experiment_name).experiment_id
+            return self.mlflow_client.get_experiment_by_name(
+                self.experiment_name).experiment_id
 
     @memoized_property
     def mlflow_run(self):
@@ -190,27 +193,22 @@ class Trainer():
 
     def mlflow_log_param(self, param_name, value):
         if self.mlflow:
-            self.mlflow_client.log_param(self.mlflow_run.info.run_id, param_name, value)
+            self.mlflow_client.log_param(self.mlflow_run.info.run_id,
+                                         param_name, value)
 
     def mlflow_log_metric(self, metric_name, value):
         if self.mlflow:
-            self.mlflow_client.log_metric(self.mlflow_run.info.run_id, metric_name, value)
+            self.mlflow_client.log_metric(self.mlflow_run.info.run_id,
+                                          metric_name, value)
 
     def upload(self, src, tgt):
         client = storage.Client().bucket(bucket)
-        # storage_location = '{}/{}/{}/{}'.format(
-        #     'models',
-        #     'taxi_fare_model',
-        #     model_directory,
-        #     'model.joblib')
         blob = client.blob(tgt)
         blob.upload_from_filename(src)
-
 
 def construct_model_location(*args):
     s = "_".join(map(str, args))
     return f"gs://{BUCKET_NAME}/models/model_{int(time.time())}_{s}"
-
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -221,20 +219,13 @@ if __name__ == "__main__":
     parser.add_argument("--model-type", default='standard')
     parser.add_argument("--epochs", type=int, default=5)
     params = parser.parse_args()
-
     class_balance = params.class_balance
     use_taco = params.use_taco
     gcp = params.use_gcp
     model_type = params.model_type
     epochs = params.epochs
-
     model_location = construct_model_location(model_type, epochs, gcp, class_balance, use_taco)
-    # model_location = "gs://wagon-data-699-waste_classification/models/model_1631024173_standard_1_True_False"
-
     t = Trainer()
     t.load_data(gcp=gcp, class_balance=class_balance, use_taco=use_taco)
-
     t.train_model(model_type=model_type, epochs=epochs)
     t.save_model(model_location)
-
-    # t.load_model(model_location)
