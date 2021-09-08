@@ -157,11 +157,22 @@ def save_cropped_TACO():
         img.save(croppedImagePath)
 
 
+def get_all_data(gcp=False, class_balance=True, use_taco=False):
+    labels = ['paper', 'plastic', 'metal', 'trash', 'glass', 'cardboard']
+    trashnet_class_count = np.array([594, 482, 410, 137, 501, 403])
+    TACO_class_count = np.array([260, 1004, 276, 404, 95, 46])
 
-def get_all_data(gcp=False):
-    taco_train, taco_val, taco_test = get_data_TACO(gcp)
-    trash_train, trash_val, trash_test = get_data_trashnet(gcp)
-    return taco_train.concatenate(taco_val).concatenate(taco_test).concatenate(trash_train), trash_val, trash_test
+    class_count = trashnet_class_count
+    train, val, test = get_data_trashnet(gcp)
+    if use_taco:
+        class_count += TACO_class_count
+        for x in get_data_TACO(gcp):
+            train = train.concatenate(x)
+    if class_balance:
+        class_weights = np.ones(6)
+    else:
+        class_weights = 6*class_count / class_count.sum()
+    return train, val, test, dict(enumerate(class_weights))
 
 
 if __name__ == '__main__':
