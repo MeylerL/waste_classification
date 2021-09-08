@@ -14,7 +14,6 @@ from waste_classification.data import get_all_data, get_data_TACO, get_data_tras
 from tensorflow.keras.layers.experimental.preprocessing import Rescaling, RandomRotation, RandomFlip
 from tensorflow.keras import Sequential
 from tensorflow.keras.preprocessing import image_dataset_from_directory
-from tensorflow.keras.layers.experimental.preprocessing import Rescaling
 from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, Dropout
 from tensorflow.keras.losses import SparseCategoricalCrossentropy
 from google.cloud import storage
@@ -24,7 +23,10 @@ from tensorflow.keras.applications import DenseNet121, VGG16, ResNet50
 from tensorflow.keras.optimizers import Adam
 from keras.preprocessing import image
 from tensorflow.keras.callbacks import EarlyStopping
-
+from waste_classification.params import BUCKET_NAME
+import argparse
+from sys import argv, stderr
+import sys
 
 class Trainer():
     def __init__(self, model_type):
@@ -42,25 +44,20 @@ class Trainer():
              RandomFlip()])
         return augmentation
 
-    def load_data(self, use_trashnet=True, use_taco=True, gcp=False):
-        if use_trashnet and use_taco:
-            train_ds, val_ds, test_ds = get_all_data(gcp)
-        elif use_taco:
-            train_ds, val_ds, test_ds = get_data_TACO(gcp)
-        elif use_trashnet:
-            train_ds, val_ds, test_ds = get_data_trashnet(gcp)
-        else:
-            raise Exception("you have to use some data")
+    def load_data(self, use_taco=True, class_balance=True, gcp=False):
+        train_ds, val_ds, test_ds, class_weights = get_all_data(use_taco=use_taco,
+                                                                class_balance=class_balance,
+                                                                gcp=gcp)
         self.train_ds_local = train_ds
         self.val_ds_local = val_ds
         self.test_ds_local = test_ds
+        self.class_weights = class_weights
 
-    def create_main_layer(self, num_classes=6):
+    def create_main_layer(self, model_type="DenseNet121", num_classes=6):
         input_shape = (180, 180, 3)
-        if self.model_type == "ResNet50":
-            base_model = ResNet50(input_shape=input_shape,
-                                  include_top=False,
-                                  weights="imagenet")
+        if model_type == "ResNet50":
+            base_model = ResNet50(input_shape=input_shape, include_top=False, weights="imagenet")
+
             for layer in base_model.layers:
                 layer.trainable = False
         elif self.model_type == "VGG16":
@@ -101,37 +98,47 @@ class Trainer():
         self.mlflow_log_param(self.model_type, "i am a parameter")
         return model
 
-    def train_model(self, epochs=1):
+    def train_model(self, model_type, epochs=1):
         tic = time.time()
-        core_model = self.create_main_layer()
+        core_model = self.create_main_layer(model_type)
         model = Sequential([self.augment_trashnet(), core_model])
         model.compile(Adam(),
                       loss=SparseCategoricalCrossentropy(from_logits=False),
                       metrics=['accuracy'])
-        history = model.fit(
-            self.train_ds_local,
-            validation_data=self.val_ds_local,
-            epochs=epochs,
-            callbacks=[EarlyStopping(monitor='val_accuracy', patience=10)])
+        history = model.fit(self.train_ds_local, validation_data=self.val_ds_local, epochs=epochs, callbacks=[
+            EarlyStopping(monitor='val_accuracy', patience=2)], class_weight=self.class_weights)
         self.mlflow_log_metric("epochs", epochs)
         self.mlflow_log_metric("train_time", int(time.time() - tic))
-        self.model = model
+        self.model = core_model
+        self.history = history
         plt.plot(history.history['accuracy'])
         plt.plot(history.history['val_accuracy'])
         plt.legend(['Training', 'Validation'])
         plt.xlabel('epoch')
         plt.savefig('Accuracy.jpg')
         print(f"accuracy plot saved at Accuracy.jpg")
-        return model
+        val_accuracy = history.history['val_accuracy'][-1]
+        print(f"model validation accuracy is {val_accuracy}")
 
-    def load_model(self, model_dir):
-        self.model = tf.keras.models.load_model(model_dir)
+    def load_model(self, model_location):
+        print(f"loading model from {model_location}")
+        self.model = tf.keras.models.load_model(model_location)
 
-    def save_model(self, model_dir):
-        self.model.save(os.path.join(model_dir, "keras_model"))
+    def save_model(self, model_location):
+        print(f"saving model to {model_location}")
+        self.model.save(model_location)
+        plt.plot(self.history.history['accuracy'])
+        plt.plot(self.history.history['val_accuracy'])
+        plt.legend(['Training', 'Validation'])
+        plt.xlabel('epoch')
+        fn = "Accuracy.png"
+        plt.savefig(fn)
+        self.upload(fn, model_location+"_"+fn)
+        # plt.savefig(os.path.join(model_location, 'Accuracy.jpg'))
+        self.compute_confusion_matrix(model_location+"_confusion_matrix.png")
 
-    def compute_confusion_matrix(self, model_dir, data_dir):
-        train_ds, val_ds, test_ds = get_data_trashnet()
+    def compute_confusion_matrix(self, plot_location):
+        plt.clf()
         model = self.model
         confusion_matrix = None
         for batch_input, batch_output in self.val_ds_local:
@@ -142,15 +149,15 @@ class Trainer():
             else:
                 confusion_matrix += c
         labels = ['paper', 'plastic', 'metal', 'trash', 'glass', 'cardboard']
-        sns.heatmap(confusion_matrix.numpy(),
-                    annot=True,
-                    xticklabels=labels,
-                    yticklabels=labels)
-        plt.savefig(model_dir)
-        print(f"confusion matrix plot saved at {model_dir}")
+        ax = sns.heatmap(confusion_matrix.numpy(), annot=True, xticklabels=labels, yticklabels=labels)
+        ax.set(xlabel='predicted label', ylabel='true label')
+        fn = "confusion_matrix.png"
+        plt.savefig(fn)
+        self.upload(fn, plot_location)
+        plt.clf()
+        print(f"confusion matrix plot saved at {plot_location}")
 
     def loss_function(self):
-        self.model = model
         plt.plot(history.history['loss'])
         plt.plot(history.history['val_loss'])
         plt.legend(['Training', 'Validation'])
@@ -194,12 +201,31 @@ class Trainer():
             self.mlflow_client.log_metric(self.mlflow_run.info.run_id,
                                           metric_name, value)
 
+    def upload(self, src, tgt):
+        client = storage.Client().bucket(bucket)
+        blob = client.blob(tgt)
+        blob.upload_from_filename(src)
+
+def construct_model_location(*args):
+    s = "_".join(map(str, args))
+    return f"gs://{BUCKET_NAME}/models/model_{int(time.time())}_{s}"
 
 if __name__ == "__main__":
-    model_dir = os.path.join(package_parent, "pretrained_models")
-    print(model_dir)
-    t = Trainer("ResNet50")
-    t.load_data(gcp=False, use_taco=False)
-    t.train_model(epochs=1)
-    # t.compute_confusion_matrix()
-    t.save_model(model_dir)
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--job-dir", default='')
+    parser.add_argument("--class-balance", default=True)
+    parser.add_argument("--use-taco", default=True)
+    parser.add_argument("--use-gcp", default=True)
+    parser.add_argument("--model-type", default='standard')
+    parser.add_argument("--epochs", type=int, default=5)
+    params = parser.parse_args()
+    class_balance = params.class_balance
+    use_taco = params.use_taco
+    gcp = params.use_gcp
+    model_type = params.model_type
+    epochs = params.epochs
+    model_location = construct_model_location(model_type, epochs, gcp, class_balance, use_taco)
+    t = Trainer()
+    t.load_data(gcp=gcp, class_balance=class_balance, use_taco=use_taco)
+    t.train_model(model_type=model_type, epochs=epochs)
+    t.save_model(model_location)
