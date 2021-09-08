@@ -20,10 +20,10 @@ from tensorflow.keras.losses import SparseCategoricalCrossentropy
 from google.cloud import storage
 from waste_classification.params import  MLFLOW_URI, LOCAL_PATH_TRASHNET, package_parent
 from mlflow.tracking import MlflowClient
-from tensorflow.keras.applications import DenseNet121, VGG16, ResNet50
+from tensorflow.keras.applications import DenseNet169, DenseNet121, VGG16, ResNet50, ResNet101
 from tensorflow.keras.optimizers import Adam
 from keras.preprocessing import image
-from tensorflow.keras.callbacks import EarlyStopping
+from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau
 
 #hi, julio was here!
 
@@ -43,6 +43,7 @@ class Trainer():
 
 
 #RandomRotation(factor=(-0.1, 0.3)),
+#RandomZoom(.5, .2)
 
     def load_data(self, use_trashnet=True, use_taco=True, gcp=False):
         if use_trashnet and use_taco:
@@ -57,11 +58,17 @@ class Trainer():
         self.val_ds_local = val_ds
         self.test_ds_local = test_ds
 
-    def create_main_layer(self, model_type="ResNet50", num_classes=6):
-        model_type = "ResNet50"
+    def create_main_layer(self, model_type="ResNet101", num_classes=6):
+        model_type = "ResNet101"
         input_shape=(180, 180, 3)
         if model_type == "ResNet50":
             base_model = ResNet50(input_shape=input_shape, include_top=False, weights="imagenet")
+            for layer in base_model.layers:
+                layer.trainable = False
+        elif model_type == "ResNet101":
+            base_model = ResNet101(input_shape=input_shape,
+                               include_top=False,
+                               weights="imagenet")
             for layer in base_model.layers:
                 layer.trainable = False
         elif model_type == "VGG16":
@@ -69,9 +76,15 @@ class Trainer():
                                include_top=False,
                                weights="imagenet")
             for layer in base_model.layers:
-                layer.trainable = False
+                layer.trainable = False        
         elif model_type == "DenseNet121":
             base_model = DenseNet121(include_top=False,
+                                     weights="imagenet",
+                                     input_shape=input_shape)
+            for layer in base_model.layers:
+                layer.trainable = False
+        elif model_type == "DenseNet169":
+            base_model = DenseNet169(include_top=False,
                                      weights="imagenet",
                                      input_shape=input_shape)
             for layer in base_model.layers:
@@ -100,7 +113,7 @@ class Trainer():
         return model
 
 
-    def train_model(self, model_type, epochs=20):
+    def train_model(self, model_type, epochs=1):
         tic = time.time()
         core_model = self.create_main_layer()
         model = Sequential([self.augment_trashnet(),
@@ -110,7 +123,9 @@ class Trainer():
                       loss=SparseCategoricalCrossentropy(from_logits=False),
                       metrics=['accuracy'])
         history = model.fit(self.train_ds_local, validation_data=self.val_ds_local, epochs=epochs, callbacks=[
-            EarlyStopping(monitor='val_accuracy',patience=9)])
+            EarlyStopping(monitor='val_accuracy',patience=9),
+            ReduceLROnPlateau(monitor='val_loss', factor=0.2,
+                              patience=2, min_lr=0.0001, verbose=1)])
         self.mlflow_log_metric("epochs", epochs)
         self.mlflow_log_metric("train_time", int(time.time() - tic))
         self.model = model
@@ -199,7 +214,7 @@ if __name__ == "__main__":
     model_dir = os.path.join(package_parent, "model_standard")
     t = Trainer()
     t.load_data(gcp=False, use_taco=False)
-    t.train_model(model_type="ResNet50", epochs=20)
+    t.train_model(model_type="ResNet101", epochs=1)
     # t.compute_confusion_matrix(os.path.join(model_dir, "..", "confusion_matrix.png"))
     t.save_model(model_dir)
     # t.load_model(model_dir)

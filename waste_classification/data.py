@@ -24,7 +24,7 @@ def get_data_trashnet(gcp=False):
         return tuple(load_dataset(f"{directory}_{i}", compression="GZIP") for i in range(3))
     else:
         directory = TRASHNET_RESIZED
-        batch_size = 16
+        batch_size = 32
         img_height = 180
         img_width = 180
         all_train_ds = image_dataset_from_directory(directory,
