@@ -25,8 +25,6 @@ from tensorflow.keras.optimizers import Adam
 from keras.preprocessing import image
 from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau
 
-#hi, julio was here!
-
 class Trainer():
     def __init__(self):
         self.experiment_name = "waste_classification_first_model"
@@ -40,6 +38,7 @@ class Trainer():
         augmentation = Sequential(
             [RandomFlip()])
         return augmentation
+    
 
 
 #RandomRotation(factor=(-0.1, 0.3)),

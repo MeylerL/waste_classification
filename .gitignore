@@ -8,3 +8,5 @@ raw_data/
 .env
 .python-version
 /waste_calssification/mlruns/
+model_standard/
+
