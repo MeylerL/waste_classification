@@ -32,3 +32,5 @@ CATEGORY_CONVERSION['trash'] = [1, 3, 22, 35, 42, 46, 51, 57, 58]
 
 if __name__ == "__main__":
     print(os.path.exists(TACO_path), TACO_path)
+    print(package_parent)
+    print(package_directory)
