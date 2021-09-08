@@ -19,10 +19,10 @@ from tensorflow.keras.losses import SparseCategoricalCrossentropy
 from google.cloud import storage
 from waste_classification.params import MLFLOW_URI, LOCAL_PATH_TRASHNET, package_parent
 from mlflow.tracking import MlflowClient
-from tensorflow.keras.applications import DenseNet121, VGG16, ResNet50
+from tensorflow.keras.applications import DenseNet169, DenseNet121, VGG16, ResNet50, ResNet101
 from tensorflow.keras.optimizers import Adam
 from keras.preprocessing import image
-from tensorflow.keras.callbacks import EarlyStopping
+from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau
 from waste_classification.params import BUCKET_NAME
 import argparse
 from sys import argv, stderr
@@ -43,6 +43,11 @@ class Trainer():
             [RandomRotation(factor=(-0.2, 0.3)),
              RandomFlip()])
         return augmentation
+    
+
+
+#RandomRotation(factor=(-0.1, 0.3)),
+#RandomZoom(.5, .2)
 
     def load_data(self, use_taco=True, class_balance=True, gcp=False):
         train_ds, val_ds, test_ds, class_weights = get_all_data(use_taco=use_taco,
@@ -53,21 +58,36 @@ class Trainer():
         self.test_ds_local = test_ds
         self.class_weights = class_weights
 
-    def create_main_layer(self, model_type="DenseNet121", num_classes=6):
-        input_shape = (180, 180, 3)
+    def create_main_layer(self, model_type="ResNet50", num_classes=6):
+        model_type = "ResNet50"
+        input_shape=(180, 180, 3)
+
         if model_type == "ResNet50":
             base_model = ResNet50(input_shape=input_shape, include_top=False, weights="imagenet")
 
             for layer in base_model.layers:
                 layer.trainable = False
-        elif self.model_type == "VGG16":
-            base_model = VGG16(input_shape=input_shape,
+        elif model_type == "ResNet101":
+            base_model = ResNet101(input_shape=input_shape,
                                include_top=False,
                                weights="imagenet")
             for layer in base_model.layers:
                 layer.trainable = False
-        elif self.model_type == "DenseNet121":
+        elif model_type == "VGG16":
+            base_model = VGG16(input_shape=input_shape,
+                               include_top=False,
+                               weights="imagenet")
+            for layer in base_model.layers:
+                layer.trainable = False        
+        elif model_type == "DenseNet121":
+
             base_model = DenseNet121(include_top=False,
+                                     weights="imagenet",
+                                     input_shape=input_shape)
+            for layer in base_model.layers:
+                layer.trainable = False
+        elif model_type == "DenseNet169":
+            base_model = DenseNet169(include_top=False,
                                      weights="imagenet",
                                      input_shape=input_shape)
             for layer in base_model.layers:
@@ -90,13 +110,12 @@ class Trainer():
         model = Sequential([
             model,
             Dense(128, activation='relu'),
-            Dropout(0.2),
-            Dense(32, activation='relu'),
             Dense(num_classes, activation='softmax')
         ])
         model.compile()
         self.mlflow_log_param(self.model_type, "i am a parameter")
         return model
+
 
     def train_model(self, model_type, epochs=1):
         tic = time.time()
@@ -106,7 +125,10 @@ class Trainer():
                       loss=SparseCategoricalCrossentropy(from_logits=False),
                       metrics=['accuracy'])
         history = model.fit(self.train_ds_local, validation_data=self.val_ds_local, epochs=epochs, callbacks=[
-            EarlyStopping(monitor='val_accuracy', patience=2)], class_weight=self.class_weights)
+            EarlyStopping(monitor='val_accuracy',patience=9),
+            ReduceLROnPlateau(monitor='val_loss', factor=0.2,
+                              patience=2, min_lr=0.0001, verbose=1)])
+
         self.mlflow_log_metric("epochs", epochs)
         self.mlflow_log_metric("train_time", int(time.time() - tic))
         self.model = core_model
@@ -163,8 +185,39 @@ class Trainer():
         plt.legend(['Training', 'Validation'])
         plt.title('Training and Validation Losses')
         plt.xlabel('epoch')
-        plt.savefig('Accuracy.jpg')
-        print(f"accuracy plot saved at Accuracy.jpg")
+        plt.savefig('Accuracy + Loss.jpg')
+        print(f"Accuracy and Loss plot saved as Accuracy + Loss.jpg")
+
+        train_ds, val_ds, test_ds = get_all_data()
+        test_loss, test_acc = self.model.evaluate(test_ds)
+        print('Test loss: {} Test Acc: {}'.format(test_loss, test_acc))
+        self.mlflow_log_metric("Loss", test_loss)
+        self.mlflow_log_metric("Accuracy", test_acc)
+
+        return model
+
+    def load_model(self, model_dir):
+        self.model = tf.keras.models.load_model(model_dir)
+
+    def save_model(self, model_dir):
+        self.model.save(model_dir)
+
+    # def compute_confusion_matrix(self, model_dir, data_dir):
+    #     train_ds, val_ds, test_ds = get_data_trashnet()
+    #     model = self.model
+    #     confusion_matrix = None
+    #     for batch_input, batch_output in self.val_ds_local:
+    #         p = tf.argmax(self.model(batch_input), -1)
+    #         c = tf.math.confusion_matrix(batch_output, p, num_classes=6)
+    #         if confusion_matrix is None:
+    #             confusion_matrix = c
+    #         else:
+    #             confusion_matrix += c
+    #     labels = ['paper', 'plastic', 'metal', 'trash', 'glass', 'cardboard']
+    #     sns.heatmap(confusion_matrix.numpy(), annot=True, xticklabels=labels, yticklabels=labels)
+    #     plt.savefig(plot_location)
+    #     print(f"confusion matrix plot saved at {plot_location}")
+
 
     def evaluate_score(self):
         model = self.model
@@ -229,3 +282,4 @@ if __name__ == "__main__":
     t.load_data(gcp=gcp, class_balance=class_balance, use_taco=use_taco)
     t.train_model(model_type=model_type, epochs=epochs)
     t.save_model(model_location)
+
