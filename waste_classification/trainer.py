@@ -52,7 +52,7 @@ class Trainer():
     def load_data(self, use_taco=True, class_balance=True, gcp=False):
         train_ds, val_ds, test_ds, class_weights = get_all_data(use_taco=use_taco,
                                                                 class_balance=class_balance,
-                                                                gcp=gcp)
+                                                                gcp=False)
         self.train_ds_local = train_ds
         self.val_ds_local = val_ds
         self.test_ds_local = test_ds
@@ -252,8 +252,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--job-dir", default='')
     parser.add_argument("--class-balance", default=True)
-    parser.add_argument("--use-taco", default=True)
-    parser.add_argument("--use-gcp", default=True)
+    parser.add_argument("--use-taco", default=False)
+    parser.add_argument("--use-gcp", default=False)
     parser.add_argument("--model-type", default='standard')
     parser.add_argument("--epochs", type=int, default=1)
     params = parser.parse_args()
@@ -263,8 +263,8 @@ if __name__ == "__main__":
     model_type = params.model_type
     epochs = params.epochs
     model_location = construct_model_location(model_type, epochs, gcp, class_balance, use_taco)
-    t = Trainer()
-    t.load_data(gcp=gcp, class_balance=class_balance, use_taco=use_taco)
+    t = Trainer(model_type)
+    t.load_data(gcp=False, class_balance=class_balance, use_taco=use_taco)
     t.train_model(model_type=model_type, epochs=epochs)
     t.save_model(model_location)
 
