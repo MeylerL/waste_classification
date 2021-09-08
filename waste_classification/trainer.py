@@ -58,8 +58,8 @@ class Trainer():
         self.val_ds_local = val_ds
         self.test_ds_local = test_ds
 
-    def create_main_layer(self, model_type="ResNet101", num_classes=6):
-        model_type = "ResNet101"
+    def create_main_layer(self, model_type="ResNet50", num_classes=6):
+        model_type = "ResNet50"
         input_shape=(180, 180, 3)
         if model_type == "ResNet50":
             base_model = ResNet50(input_shape=input_shape, include_top=False, weights="imagenet")
@@ -214,7 +214,7 @@ if __name__ == "__main__":
     model_dir = os.path.join(package_parent, "model_standard")
     t = Trainer()
     t.load_data(gcp=False, use_taco=False)
-    t.train_model(model_type="ResNet101", epochs=1)
+    t.train_model(model_type="ResNet50", epochs=20)
     # t.compute_confusion_matrix(os.path.join(model_dir, "..", "confusion_matrix.png"))
     t.save_model(model_dir)
     # t.load_model(model_dir)
