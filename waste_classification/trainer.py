@@ -29,14 +29,14 @@ from sys import argv, stderr
 import sys
 
 class Trainer():
-    def __init__(self, model_type):
+    def __init__(self):
         self.experiment_name = "waste_classification_first_model"
         self.train_ds_local = None
         self.val_ds_local = None
         self.test_ds_local = None
         self.model = None
         self.mlflow = True
-        self.model_type = model_type
+        self.model_type = None
 
     def augment_trashnet(self):
         augmentation = Sequential(
@@ -66,21 +66,14 @@ class Trainer():
             base_model = ResNet50(input_shape=input_shape, include_top=False, weights="imagenet")
 
             for layer in base_model.layers:
-                layer.trainable = False
-        elif model_type == "ResNet101":
-            base_model = ResNet101(input_shape=input_shape,
-                               include_top=False,
-                               weights="imagenet")
-            for layer in base_model.layers:
-                layer.trainable = False
+
         elif model_type == "VGG16":
             base_model = VGG16(input_shape=input_shape,
                                include_top=False,
                                weights="imagenet")
             for layer in base_model.layers:
-                layer.trainable = False        
+                layer.trainable = False
         elif model_type == "DenseNet121":
-
             base_model = DenseNet121(include_top=False,
                                      weights="imagenet",
                                      input_shape=input_shape)
@@ -104,7 +97,7 @@ class Trainer():
                 MaxPooling2D()
             ])
         else:
-            raise Exception(f"model {self.model_type} not supported")
+            raise Exception(f"model {model_type} not supported")
         x = tf.keras.layers.Flatten()(base_model.output)
         model = tf.keras.models.Model(base_model.input, x)
         model = Sequential([
@@ -113,7 +106,7 @@ class Trainer():
             Dense(num_classes, activation='softmax')
         ])
         model.compile()
-        self.mlflow_log_param(self.model_type, "i am a parameter")
+        self.mlflow_log_param(model_type, "i am a parameter")
         return model
 
 
@@ -124,20 +117,25 @@ class Trainer():
         model.compile(Adam(),
                       loss=SparseCategoricalCrossentropy(from_logits=False),
                       metrics=['accuracy'])
-        history = model.fit(self.train_ds_local, validation_data=self.val_ds_local, epochs=epochs, callbacks=[
-            EarlyStopping(monitor='val_accuracy',patience=9),
-            ReduceLROnPlateau(monitor='val_loss', factor=0.2,
-                              patience=2, min_lr=0.0001, verbose=1)])
-
+        has_gpu = tf.config.list_physical_devices('GPU') == []
+        if has_gpu:
+            with tf.device(tf.DeviceSpec(device_type="GPU", device_index=0)):
+                history = model.fit(self.train_ds_local, validation_data=self.val_ds_local, epochs=epochs, callbacks=[
+                    EarlyStopping(monitor='val_accuracy', patience=2)], class_weight=self.class_weights)
+        else:
+            history = model.fit(self.train_ds_local, validation_data=self.val_ds_local, epochs=epochs, callbacks=[
+                EarlyStopping(monitor='val_accuracy', patience=2)], class_weight=self.class_weights)
         self.mlflow_log_metric("epochs", epochs)
         self.mlflow_log_metric("train_time", int(time.time() - tic))
         self.model = core_model
         self.history = history
+        plt.clf()
         plt.plot(history.history['accuracy'])
         plt.plot(history.history['val_accuracy'])
         plt.legend(['Training', 'Validation'])
         plt.xlabel('epoch')
         plt.savefig('Accuracy.jpg')
+        plt.clf()
         print(f"accuracy plot saved at Accuracy.jpg")
         val_accuracy = history.history['val_accuracy'][-1]
         print(f"model validation accuracy is {val_accuracy}")
@@ -156,7 +154,6 @@ class Trainer():
         fn = "Accuracy.png"
         plt.savefig(fn)
         self.upload(fn, model_location+"_"+fn)
-        # plt.savefig(os.path.join(model_location, 'Accuracy.jpg'))
         self.compute_confusion_matrix(model_location+"_confusion_matrix.png")
 
     def compute_confusion_matrix(self, plot_location):
@@ -180,43 +177,15 @@ class Trainer():
         print(f"confusion matrix plot saved at {plot_location}")
 
     def loss_function(self):
+        plt.clf()
         plt.plot(history.history['loss'])
         plt.plot(history.history['val_loss'])
         plt.legend(['Training', 'Validation'])
         plt.title('Training and Validation Losses')
         plt.xlabel('epoch')
-        plt.savefig('Accuracy + Loss.jpg')
-        print(f"Accuracy and Loss plot saved as Accuracy + Loss.jpg")
-
-        train_ds, val_ds, test_ds = get_all_data()
-        test_loss, test_acc = self.model.evaluate(test_ds)
-        print('Test loss: {} Test Acc: {}'.format(test_loss, test_acc))
-        self.mlflow_log_metric("Loss", test_loss)
-        self.mlflow_log_metric("Accuracy", test_acc)
-
-        return model
-
-    def load_model(self, model_dir):
-        self.model = tf.keras.models.load_model(model_dir)
-
-    def save_model(self, model_dir):
-        self.model.save(model_dir)
-
-    # def compute_confusion_matrix(self, model_dir, data_dir):
-    #     train_ds, val_ds, test_ds = get_data_trashnet()
-    #     model = self.model
-    #     confusion_matrix = None
-    #     for batch_input, batch_output in self.val_ds_local:
-    #         p = tf.argmax(self.model(batch_input), -1)
-    #         c = tf.math.confusion_matrix(batch_output, p, num_classes=6)
-    #         if confusion_matrix is None:
-    #             confusion_matrix = c
-    #         else:
-    #             confusion_matrix += c
-    #     labels = ['paper', 'plastic', 'metal', 'trash', 'glass', 'cardboard']
-    #     sns.heatmap(confusion_matrix.numpy(), annot=True, xticklabels=labels, yticklabels=labels)
-    #     plt.savefig(plot_location)
-    #     print(f"confusion matrix plot saved at {plot_location}")
+        plt.savefig('Accuracy.jpg')
+        plt.clf()
+        print(f"accuracy plot saved at Accuracy.jpg")
 
 
     def evaluate_score(self):
@@ -255,13 +224,29 @@ class Trainer():
                                           metric_name, value)
 
     def upload(self, src, tgt):
-        client = storage.Client().bucket(bucket)
-        blob = client.blob(tgt)
+        client = storage.Client().bucket(BUCKET_NAME)
+        x = tgt[tgt.index("models"):]
+        blob = client.blob(x)
         blob.upload_from_filename(src)
+
 
 def construct_model_location(*args):
     s = "_".join(map(str, args))
     return f"gs://{BUCKET_NAME}/models/model_{int(time.time())}_{s}"
+
+
+def example_model_loading_and_prediction():
+    model_location = f"gs://{BUCKET_NAME}/models/model_1631093492_ResNet50_5_True_True_True"
+    model = tf.keras.models.load_model(model_location)
+    batch_input = np.random.rand(4, 180, 180, 3)
+    labels = ['paper', 'plastic', 'metal', 'trash', 'glass', 'cardboard']
+    p = tf.argmax(model(batch_input), -1)
+    p = [labels[i] for i in p]
+    return p
+
+# example_model_loading_and_prediction()
+# exit(1)
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -270,7 +255,7 @@ if __name__ == "__main__":
     parser.add_argument("--use-taco", default=True)
     parser.add_argument("--use-gcp", default=True)
     parser.add_argument("--model-type", default='standard')
-    parser.add_argument("--epochs", type=int, default=5)
+    parser.add_argument("--epochs", type=int, default=1)
     params = parser.parse_args()
     class_balance = params.class_balance
     use_taco = params.use_taco
