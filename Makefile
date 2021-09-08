@@ -104,7 +104,7 @@ train_cloud:
 		--project le-wagon-bootcamp-319614 \
 	 	--stream-logs \
 		-- \
-		--use-gcp True --use-taco True --class-balance True --model-type standard --epochs 4
+		--use-gcp True --use-taco True --class-balance True --model-type standard --epochs 10
 
 run_streamlit:
 	streamlit run app.py
