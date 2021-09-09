@@ -11,7 +11,7 @@ import time
 from memoized_property import memoized_property
 from glob import glob
 from waste_classification.data import get_all_data, get_data_TACO, get_data_trashnet
-from tensorflow.keras.layers.experimental.preprocessing import Rescaling, RandomRotation, RandomFlip
+from tensorflow.keras.layers.experimental.preprocessing import Rescaling, RandomRotation, RandomFlip, RandomZoom
 from tensorflow.keras import Sequential
 from tensorflow.keras.preprocessing import image_dataset_from_directory
 from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, Dropout
@@ -27,6 +27,7 @@ from waste_classification.params import BUCKET_NAME
 import argparse
 from sys import argv, stderr
 import sys
+from tensorflow.keras.losses import Hinge
 
 class Trainer():
     def __init__(self):
@@ -40,16 +41,10 @@ class Trainer():
 
     def augment_trashnet(self):
         augmentation = Sequential(
-            [RandomRotation(factor=(-0.2, 0.3)),
-             RandomFlip()])
+            [RandomFlip()])
         return augmentation
-    
 
-
-#RandomRotation(factor=(-0.1, 0.3)),
-#RandomZoom(.5, .2)
-
-    def load_data(self, use_taco=True, class_balance=True, gcp=False):
+    def load_data(self, use_taco=False, class_balance=True, gcp=False):
         train_ds, val_ds, test_ds, class_weights = get_all_data(use_taco=use_taco,
                                                                 class_balance=class_balance,
                                                                 gcp=False)
@@ -61,10 +56,8 @@ class Trainer():
     def create_main_layer(self, model_type="ResNet50", num_classes=6):
         model_type = "ResNet50"
         input_shape=(180, 180, 3)
-
         if model_type == "ResNet50":
             base_model = ResNet50(input_shape=input_shape, include_top=False, weights="imagenet")
-
             for layer in base_model.layers:
 
         elif model_type == "VGG16":
@@ -103,28 +96,34 @@ class Trainer():
         model = Sequential([
             model,
             Dense(128, activation='relu'),
-            Dense(num_classes, activation='softmax')
-        ])
+            Dense(num_classes, activation='softmax')])
         model.compile()
         self.mlflow_log_param(model_type, "i am a parameter")
         return model
 
 
-    def train_model(self, model_type, epochs=1):
+
+
+    def train_model(self, model_type, epochs=40):
         tic = time.time()
         core_model = self.create_main_layer(model_type)
         model = Sequential([self.augment_trashnet(), core_model])
         model.compile(Adam(),
                       loss=SparseCategoricalCrossentropy(from_logits=False),
                       metrics=['accuracy'])
+
+
         has_gpu = tf.config.list_physical_devices('GPU') == []
         if has_gpu:
             with tf.device(tf.DeviceSpec(device_type="GPU", device_index=0)):
                 history = model.fit(self.train_ds_local, validation_data=self.val_ds_local, epochs=epochs, callbacks=[
-                    EarlyStopping(monitor='val_accuracy', patience=2)], class_weight=self.class_weights)
+                    EarlyStopping(monitor='val_accuracy', patience=2), ReduceLROnPlateau(monitor='val_loss', factor=0.2,
+                              patience=3, min_lr=0.0001, verbose=1)], class_weight=self.class_weights)
         else:
             history = model.fit(self.train_ds_local, validation_data=self.val_ds_local, epochs=epochs, callbacks=[
-                EarlyStopping(monitor='val_accuracy', patience=2)], class_weight=self.class_weights)
+                EarlyStopping(monitor='val_accuracy', patience=2), ReduceLROnPlateau(monitor='val_loss', factor=0.2,
+                              patience=3, min_lr=0.0001, verbose=1)], class_weight=self.class_weights)
+
         self.mlflow_log_metric("epochs", epochs)
         self.mlflow_log_metric("train_time", int(time.time() - tic))
         self.model = core_model
@@ -176,18 +175,6 @@ class Trainer():
         plt.clf()
         print(f"confusion matrix plot saved at {plot_location}")
 
-    def loss_function(self):
-        plt.clf()
-        plt.plot(history.history['loss'])
-        plt.plot(history.history['val_loss'])
-        plt.legend(['Training', 'Validation'])
-        plt.title('Training and Validation Losses')
-        plt.xlabel('epoch')
-        plt.savefig('Accuracy.jpg')
-        plt.clf()
-        print(f"accuracy plot saved at Accuracy.jpg")
-
-
     def evaluate_score(self):
         model = self.model
         train_ds, val_ds, test_ds = get_data_trashnet()
@@ -225,6 +212,7 @@ class Trainer():
 
     def upload(self, src, tgt):
         client = storage.Client().bucket(BUCKET_NAME)
+
         x = tgt[tgt.index("models"):]
         blob = client.blob(x)
         blob.upload_from_filename(src)
@@ -254,9 +242,10 @@ if __name__ == "__main__":
     parser.add_argument("--class-balance", default=True)
     parser.add_argument("--use-taco", default=False)
     parser.add_argument("--use-gcp", default=False)
-    parser.add_argument("--model-type", default='standard')
-    parser.add_argument("--epochs", type=int, default=1)
+    parser.add_argument("--model-type", default='ResNet50')
+    parser.add_argument("--epochs", type=int, default=40)
     params = parser.parse_args()
+    print(params)
     class_balance = params.class_balance
     use_taco = params.use_taco
     gcp = params.use_gcp
