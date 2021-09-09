@@ -59,7 +59,7 @@ class Trainer():
         if model_type == "ResNet50":
             base_model = ResNet50(input_shape=input_shape, include_top=False, weights="imagenet")
             for layer in base_model.layers:
-
+                layer.trainable = False
         elif model_type == "VGG16":
             base_model = VGG16(input_shape=input_shape,
                                include_top=False,
@@ -256,4 +256,3 @@ if __name__ == "__main__":
     t.load_data(gcp=False, class_balance=class_balance, use_taco=use_taco)
     t.train_model(model_type=model_type, epochs=epochs)
     t.save_model(model_location)
-
