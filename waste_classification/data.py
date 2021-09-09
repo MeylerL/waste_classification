@@ -157,7 +157,7 @@ def save_cropped_TACO():
         img.save(croppedImagePath)
 
 
-def get_all_data(gcp=False, class_balance=True, use_taco=False):
+def get_all_data(use_taco=False, gcp=False, class_balance=True):
     labels = ['paper', 'plastic', 'metal', 'trash', 'glass', 'cardboard']
     trashnet_class_count = np.array([594, 482, 410, 137, 501, 403])
     TACO_class_count = np.array([260, 1004, 276, 404, 95, 46])
