@@ -163,10 +163,10 @@ def get_all_data(use_taco=False, gcp=False, class_balance=True):
     TACO_class_count = np.array([260, 1004, 276, 404, 95, 46])
 
     class_count = trashnet_class_count
-    train, val, test = get_data_trashnet(gcp)
+    train, val, test = get_data_trashnet())
     if use_taco:
         class_count += TACO_class_count
-        for x in get_data_TACO(gcp):
+        for x in get_data_TACO():
             train = train.concatenate(x)
     if class_balance:
         class_weights = np.ones(6)
