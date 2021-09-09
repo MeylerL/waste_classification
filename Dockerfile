@@ -6,4 +6,4 @@ COPY pretrained_models /pretrained_models
 COPY images /images
 RUN pip install --upgrade pip
 RUN pip install -r requirements.txt
-CMD streamlit run app.py
+CMD streamlit run app.py  --server.port $PORT
