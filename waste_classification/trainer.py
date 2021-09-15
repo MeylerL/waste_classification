@@ -27,7 +27,6 @@ from waste_classification.params import BUCKET_NAME
 import argparse
 from sys import argv, stderr
 import sys
-from tensorflow.keras.losses import Hinge
 
 class Trainer():
     def __init__(self):
@@ -44,10 +43,10 @@ class Trainer():
             [RandomFlip()])
         return augmentation
 
-    def load_data(self, use_taco=False, class_balance=True, gcp=False):
+    def load_data(self, use_taco=False, class_balance=True, gcp=True):
         train_ds, val_ds, test_ds, class_weights = get_all_data(use_taco=use_taco,
                                                                 class_balance=class_balance,
-                                                                gcp=False)
+                                                                gcp=True)
         self.train_ds_local = train_ds
         self.val_ds_local = val_ds
         self.test_ds_local = test_ds
@@ -59,36 +58,7 @@ class Trainer():
         if model_type == "ResNet50":
             base_model = ResNet50(input_shape=input_shape, include_top=False, weights="imagenet")
             for layer in base_model.layers:
-
-        elif model_type == "VGG16":
-            base_model = VGG16(input_shape=input_shape,
-                               include_top=False,
-                               weights="imagenet")
-            for layer in base_model.layers:
                 layer.trainable = False
-        elif model_type == "DenseNet121":
-            base_model = DenseNet121(include_top=False,
-                                     weights="imagenet",
-                                     input_shape=input_shape)
-            for layer in base_model.layers:
-                layer.trainable = False
-        elif model_type == "DenseNet169":
-            base_model = DenseNet169(include_top=False,
-                                     weights="imagenet",
-                                     input_shape=input_shape)
-            for layer in base_model.layers:
-                layer.trainable = False
-        elif model_type == "standard":
-            normalization_layer = Rescaling(1. / 255, input_shape=input_shape)
-            base_model = Sequential([
-                normalization_layer,
-                Conv2D(32, 3, activation='relu'),
-                MaxPooling2D(),
-                Conv2D(32, 3, activation='relu'),
-                MaxPooling2D(),
-                Conv2D(32, 3, activation='relu'),
-                MaxPooling2D()
-            ])
         else:
             raise Exception(f"model {model_type} not supported")
         x = tf.keras.layers.Flatten()(base_model.output)
@@ -101,29 +71,21 @@ class Trainer():
         self.mlflow_log_param(model_type, "i am a parameter")
         return model
 
-
-
-
-    def train_model(self, model_type, epochs=40):
+    def train_model(self, model_type, epochs=30):
         tic = time.time()
         core_model = self.create_main_layer(model_type)
         model = Sequential([self.augment_trashnet(), core_model])
-        model.compile(Adam(),
+        model.compile(Adam(learning_rate=0.0001),
                       loss=SparseCategoricalCrossentropy(from_logits=False),
                       metrics=['accuracy'])
-
-
         has_gpu = tf.config.list_physical_devices('GPU') == []
         if has_gpu:
             with tf.device(tf.DeviceSpec(device_type="GPU", device_index=0)):
                 history = model.fit(self.train_ds_local, validation_data=self.val_ds_local, epochs=epochs, callbacks=[
-                    EarlyStopping(monitor='val_accuracy', patience=2), ReduceLROnPlateau(monitor='val_loss', factor=0.2,
-                              patience=3, min_lr=0.0001, verbose=1)], class_weight=self.class_weights)
+                    EarlyStopping(monitor='val_accuracy', patience=10)], class_weight=self.class_weights)
         else:
             history = model.fit(self.train_ds_local, validation_data=self.val_ds_local, epochs=epochs, callbacks=[
-                EarlyStopping(monitor='val_accuracy', patience=2), ReduceLROnPlateau(monitor='val_loss', factor=0.2,
-                              patience=3, min_lr=0.0001, verbose=1)], class_weight=self.class_weights)
-
+                EarlyStopping(monitor='val_accuracy', patience=10)], class_weight=self.class_weights)
         self.mlflow_log_metric("epochs", epochs)
         self.mlflow_log_metric("train_time", int(time.time() - tic))
         self.model = core_model
@@ -138,6 +100,7 @@ class Trainer():
         print(f"accuracy plot saved at Accuracy.jpg")
         val_accuracy = history.history['val_accuracy'][-1]
         print(f"model validation accuracy is {val_accuracy}")
+        self.mlflow_log_metric("Accuracy", val_accuracy)
 
     def load_model(self, model_location):
         print(f"loading model from {model_location}")
@@ -174,14 +137,6 @@ class Trainer():
         self.upload(fn, plot_location)
         plt.clf()
         print(f"confusion matrix plot saved at {plot_location}")
-
-    def evaluate_score(self):
-        model = self.model
-        train_ds, val_ds, test_ds = get_data_trashnet()
-        test_loss, test_acc = self.model.evaluate(test_ds)
-        print('Test loss: {} Test Acc: {}'.format(test_loss, test_acc))
-        self.mlflow_log_metric("Loss", test_loss)
-        self.mlflow_log_metric("Accuracy", test_acc)
 
     @memoized_property
     def mlflow_client(self):
@@ -232,18 +187,14 @@ def example_model_loading_and_prediction():
     p = [labels[i] for i in p]
     return p
 
-# example_model_loading_and_prediction()
-# exit(1)
-
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--job-dir", default='')
     parser.add_argument("--class-balance", default=True)
     parser.add_argument("--use-taco", default=False)
-    parser.add_argument("--use-gcp", default=False)
+    parser.add_argument("--use-gcp", default=True)
     parser.add_argument("--model-type", default='ResNet50')
-    parser.add_argument("--epochs", type=int, default=40)
+    parser.add_argument("--epochs", type=int, default=30)
     params = parser.parse_args()
     print(params)
     class_balance = params.class_balance
@@ -252,8 +203,8 @@ if __name__ == "__main__":
     model_type = params.model_type
     epochs = params.epochs
     model_location = construct_model_location(model_type, epochs, gcp, class_balance, use_taco)
-    t = Trainer(model_type)
-    t.load_data(gcp=False, class_balance=class_balance, use_taco=use_taco)
+    t = Trainer()
+    t.load_data(gcp=True, class_balance=class_balance, use_taco=use_taco)
     t.train_model(model_type=model_type, epochs=epochs)
     t.save_model(model_location)
 

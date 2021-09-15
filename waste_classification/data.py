@@ -17,7 +17,7 @@ import os.path
 from PIL import Image, ImageFilter
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 
-def get_data_trashnet(gcp=False):
+def get_data_trashnet(gcp=True):
     if gcp:
         directory = f"gs://{BUCKET_NAME}/{TRASHNET_BUCKET_PREFIX}"
         from tensorflow.data.experimental import load as load_dataset
@@ -64,7 +64,7 @@ def create_trained_TACO_folders():
         print("Directory '% s' created" % category)
 
 
-def get_data_TACO(gcp=False):
+def get_data_TACO(gcp=True):
     """loads TACOS data from files within gcp if gcp True. Otherwise loads from local dataset."""
     if gcp:
         directory = f"gs://{BUCKET_NAME}/{TACO_BUCKET_PREFIX}"
@@ -157,13 +157,13 @@ def save_cropped_TACO():
         img.save(croppedImagePath)
 
 
-def get_all_data(use_taco=False, gcp=False, class_balance=True):
+def get_all_data(use_taco=False, gcp=True, class_balance=True):
     labels = ['paper', 'plastic', 'metal', 'trash', 'glass', 'cardboard']
     trashnet_class_count = np.array([594, 482, 410, 137, 501, 403])
     TACO_class_count = np.array([260, 1004, 276, 404, 95, 46])
 
     class_count = trashnet_class_count
-    train, val, test = get_data_trashnet())
+    train, val, test = get_data_trashnet()
     if use_taco:
         class_count += TACO_class_count
         for x in get_data_TACO():
