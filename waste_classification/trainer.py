@@ -207,4 +207,3 @@ if __name__ == "__main__":
     t.load_data(gcp=True, class_balance=class_balance, use_taco=use_taco)
     t.train_model(model_type=model_type, epochs=epochs)
     t.save_model(model_location)
-
