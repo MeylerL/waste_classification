@@ -70,8 +70,8 @@ if uploaded_file is not None:
     columns[1].write(beep)
     time.sleep(1)
     columns[1].write(boop)
-    #model = tf.keras.models.load_model("/Users/Lucy/code/MeylerL/waste_classification/pretrained_models")
-    model = tf.keras.models.load_model(os.path.join(package_directory, "pretrained_models"))
+    model = tf.keras.models.load_model("/Users/Lucy/code/MeylerL/waste_classification/pretrained_models")
+    # model = tf.keras.models.load_model(os.path.join(package_parent, "pretrained_models"))
     result = model.predict(imgrgb_df)
     prediction = np.argmax(result, axis=1)
     ls = ["cardboard", "glass", "metal", "paper", "plastic", "trash"]

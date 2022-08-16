@@ -57,9 +57,9 @@ pypi:
 # ----------------------------------
 #      GOOGLE CLOUD PLATFORM
 # ----------------------------------
-PROJECT_ID="le-wagon-bootcamp-319614"
+PROJECT_ID="lw-data-science"
 
-BUCKET_NAME="wagon-data-699-waste_classification"
+BUCKET_NAME="waste_classifier"
 
 REGION=europe-west2
 
@@ -71,7 +71,7 @@ PACKAGE_NAME=waste_classification
 # FILENAME=gcp_trainer
 FILENAME=trainer
 
-JOB_NAME=waste_management_training_pipeline_$(shell date +'%Y%m%d_%H%M%S')
+JOB_NAME=waste_classification_training_pipeline_$(shell date +'%Y%m%d_%H%M%S')
 
 set_project:
 	@gcloud config set project ${PROJECT_ID}
@@ -79,10 +79,10 @@ set_project:
 create_bucket:
 	@gsutil mb -l ${REGION} -p ${PROJECT_ID} gs://${BUCKET_NAME}
 
-LOCAL_PATH_TRASHNET="/Users/izzy/code/MeylerL/waste_classification/raw_data/dataset-original"
-LOCAL_PATH_TACO="/Users/izzy/code/MeylerL/waste_classification/raw_data/TACO/data/cat_folders"
+LOCAL_PATH_TRASHNET="/Users/Lucy/code/MeylerL/waste_classification/raw_data/dataset-original"
+LOCAL_PATH_TACO="/Users/Lucy/code/MeylerL/waste_classification/raw_data/TACO/trainDataTACO"
 
-BUCKET_FOLDER=waste_management_data
+BUCKET_FOLDER=waste_classification_data
 
 TRASHNET_BUCKET_FILE_NAME=$(shell basename ${LOCAL_PATH_TRASHNET})
 TACO_BUCKET_FILE_NAME=$(shell basename ${LOCAL_PATH_TACO})
@@ -101,7 +101,7 @@ train_cloud:
 		--python-version=${PYTHON_VERSION} \
 	      	--runtime-version=${RUNTIME_VERSION} \
 		--region ${REGION} \
-		--project le-wagon-bootcamp-319614 \
+		--project ${PROJECT_ID} \
 	 	--stream-logs \
 		-- \
 		--use-gcp True --use-taco True --class-balance True --model-type standard --epochs 10
