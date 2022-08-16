@@ -5,16 +5,14 @@ import matplotlib.pyplot as plt
 import numpy as np
 import os
 import PIL
-from tensorflow.keras.preprocessing import image_dataset_from_directory
-from pathlib import Path
-import tempfile
-from waste_classification.params import BUCKET_FOLDER, TACO_BUCKET_PREFIX, TRASHNET_BUCKET_PREFIX, BUCKET_NAME, TRASHNET_RESIZED, LOCAL_PATH_TACO
-from PIL import Image, ImageFilter
-from shutil import rmtree
-from waste_classification.params import TACO_path, annotations_path, CATEGORY_CONVERSION
 import json
 import os.path
-from PIL import Image, ImageFilter
+from tensorflow.keras.preprocessing import image_dataset_from_directory
+from pathlib import Path
+from waste_classification.params import TACO_BUCKET_PREFIX, TRASHNET_BUCKET_PREFIX, BUCKET_NAME, TRASHNET_RESIZED, LOCAL_PATH_TACO
+from PIL import Image
+from shutil import rmtree
+from waste_classification.params import TACO_path, annotations_path, CATEGORY_CONVERSION
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 
 def get_data_trashnet(gcp=True):
